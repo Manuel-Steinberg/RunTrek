@@ -11,10 +11,11 @@ startet bei 800 Kilometern. Mehrere Paare lassen sich sortieren und ins Archiv
 verschieben, ohne ihre Historie zu verlieren.
 
 Alle Daten liegen ausschließlich im `localStorage` des Browsers (Schlüssel
-`schuh_tracker_data` und `schuh_tracker_theme`). Es gibt keinen Server, keine
+`schuh_tracker_data`, `schuh_tracker_theme` und `schuh_tracker_onboarded`). Es gibt keinen Server, keine
 Anmeldung, keine Cloud und keine Analyse- oder Werbeskripte; die Seite lädt
 ausschließlich ihre eigenen Dateien. Backups exportiert man selbst als JSON
-(Wiedereinspielen möglich) oder als CSV. Oberfläche und Inhalte sind deutsch.
+(Wiedereinspielen möglich) oder als CSV; „Alle Daten von diesem Gerät löschen“ im Bereich Statistik entfernt
+alle drei Schlüssel wieder. Oberfläche und Inhalte sind deutsch.
 
 ## App
 

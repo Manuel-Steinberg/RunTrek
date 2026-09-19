@@ -524,10 +524,6 @@
       byId('panel-' + name).hidden = !selected;
     });
 
-    // Der Info-Bereich gehoert zur Startansicht; unter einem Formular oder
-    // der Statistik waere er nur Ballast.
-    byId('about').hidden = tab !== 'shoes';
-
     if (tab === 'shoes') renderShoes();
     if (tab === 'log') { populateShoeSelect(); renderRecentRuns(); }
     if (tab === 'stats') renderStats();

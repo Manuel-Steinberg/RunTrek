@@ -14,6 +14,8 @@
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="author" content="RunTrek">
 <link rel="canonical" href="https://manuel-steinberg.github.io/RunTrek/">
+<link rel="privacy-policy" href="./datenschutz.html">
+<link rel="help" href="./faq.html">
 
 <meta property="og:type" content="website">
 <meta property="og:locale" content="de_DE">
@@ -75,57 +77,6 @@
 }
 </script>
 
-<!-- FAQPage: jede Frage steht wortgleich sichtbar im <footer class="about">.
-     Ohne sichtbare Entsprechung ist das Markup laut Google-Richtlinie ungültig. -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "inLanguage": "de",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "Wie viele Kilometer hält ein Laufschuh?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Als Faustregel gelten 600 bis 900 Kilometer. Die tatsächliche Haltbarkeit hängt von Körpergewicht, Laufstil, Untergrund und Dämpfungsmaterial ab. SchuhTracker ist deshalb pro Schuh einstellbar und startet mit 800 Kilometern als Vorgabe."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Werden meine Daten an einen Server gesendet?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Nein. SchuhTracker speichert Schuhe und Läufe ausschließlich im lokalen Speicher deines Browsers. Es gibt kein Konto, keine Anmeldung, keine Cloud und keine Analyse- oder Werbeskripte. Die App lädt ausschließlich ihre eigenen Dateien."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Funktioniert SchuhTracker offline?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Ja. Nach dem ersten Aufruf liegt die App im Cache des Browsers und lässt sich als Progressive Web App auf dem Startbildschirm installieren. Danach startet sie auch ohne Internetverbindung."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Wie sichere ich meine Daten oder wechsle das Gerät?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Im Bereich Statistik gibt es unter „Daten & Backup“ einen Export als JSON-Datei. Diese Datei lässt sich auf einem anderen Gerät oder in einem anderen Browser wieder einspielen. Zusätzlich gibt es einen CSV-Export für Excel."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Was kostet SchuhTracker?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Nichts. Die App ist kostenlos, werbefrei und funktioniert ohne Benutzerkonto."
-      }
-    }
-  ]
-}
-</script>
 </head>
 <body>
 
@@ -400,89 +351,13 @@
     </section>
   </section>
 
-
-  <!-- Eine reine App-Shell hat kaum indexierbaren Text. Dieser Abschnitt trägt
-       ihn nach, beantwortet echte Einstiegsfragen und ist zugleich die
-       Datenschutzerklärung. Sichtbar nur im Schuhe-Tab (siehe app.js). -->
-  <footer class="about" id="about">
-    <h2 class="about__title">Über SchuhTracker</h2>
-
-    <p class="about__text">
-      SchuhTracker ist ein kostenloser Kilometerzähler für Laufschuhe. Du legst deine
-      Paare an, trägst nach jedem Lauf die Distanz ein und siehst pro Schuh den
-      aktuellen Kilometerstand, den Verschleiß in Prozent und die verbleibende
-      Restlaufleistung. Ab 75&nbsp;Prozent wechselt der Schuh auf „Demnächst fällig“,
-      ab 100&nbsp;Prozent auf „Verschlissen“ – früh genug, um Ersatz zu besorgen,
-      bevor Knie und Schienbein die Rechnung schicken.
-    </p>
-    <p class="about__text">
-      Wer mehrere Paare im Wechsel läuft, sortiert sie per Griff in die gewünschte
-      Reihenfolge und schiebt ausgemusterte Schuhe ins Archiv, ohne ihre Historie zu
-      verlieren. Läufe lassen sich mit Datum und Notiz zur Strecke erfassen, die
-      Statistik zeigt Gesamtkilometer, Anzahl der Läufe und die durchschnittliche
-      Distanz. Als installierbare Progressive Web App läuft SchuhTracker auf Android,
-      iOS, Windows, macOS und Linux – auch ohne Internetverbindung.
-    </p>
-
-    <h3 class="about__subtitle">Häufige Fragen</h3>
-
-    <details class="faq">
-      <summary class="faq__q">Wie viele Kilometer hält ein Laufschuh?</summary>
-      <p class="faq__a">Als Faustregel gelten 600 bis 900 Kilometer. Die tatsächliche
-      Haltbarkeit hängt von Körpergewicht, Laufstil, Untergrund und Dämpfungsmaterial ab.
-      SchuhTracker ist deshalb pro Schuh einstellbar und startet mit 800 Kilometern als
-      Vorgabe.</p>
-    </details>
-
-    <details class="faq">
-      <summary class="faq__q">Werden meine Daten an einen Server gesendet?</summary>
-      <p class="faq__a">Nein. SchuhTracker speichert Schuhe und Läufe ausschließlich im
-      lokalen Speicher deines Browsers. Es gibt kein Konto, keine Anmeldung, keine Cloud
-      und keine Analyse- oder Werbeskripte. Die App lädt ausschließlich ihre eigenen
-      Dateien.</p>
-    </details>
-
-    <details class="faq">
-      <summary class="faq__q">Funktioniert SchuhTracker offline?</summary>
-      <p class="faq__a">Ja. Nach dem ersten Aufruf liegt die App im Cache des Browsers und
-      lässt sich als Progressive Web App auf dem Startbildschirm installieren. Danach
-      startet sie auch ohne Internetverbindung.</p>
-    </details>
-
-    <details class="faq">
-      <summary class="faq__q">Wie sichere ich meine Daten oder wechsle das Gerät?</summary>
-      <p class="faq__a">Im Bereich Statistik gibt es unter „Daten &amp; Backup“ einen Export
-      als JSON-Datei. Diese Datei lässt sich auf einem anderen Gerät oder in einem anderen
-      Browser wieder einspielen. Zusätzlich gibt es einen CSV-Export für Excel.</p>
-    </details>
-
-    <details class="faq">
-      <summary class="faq__q">Was kostet SchuhTracker?</summary>
-      <p class="faq__a">Nichts. Die App ist kostenlos, werbefrei und funktioniert ohne
-      Benutzerkonto.</p>
-    </details>
-
-    <h3 class="about__subtitle" id="datenschutz">Datenschutz</h3>
-    <p class="about__text">
-      SchuhTracker verarbeitet keine personenbezogenen Daten auf einem Server – es gibt
-      keinen. Alles, was du einträgst, liegt im <code>localStorage</code> deines Browsers
-      unter den Schlüsseln <code>schuh_tracker_data</code> und
-      <code>schuh_tracker_theme</code> und verlässt dein Gerät nur, wenn du selbst ein
-      Backup exportierst. Es werden keine Cookies gesetzt, keine Tracker geladen und keine
-      Schriften, Skripte oder Bilder von fremden Servern nachgeladen; die Seite nutzt
-      ausschließlich die Systemschrift deines Geräts.
-    </p>
-    <p class="about__text">
-      Unter „Daten &amp; Backup“ im Bereich Statistik kannst du sämtliche gespeicherten
-      Einträge jederzeit exportieren oder unwiderruflich löschen. Technisch bedingt sieht
-      der Hoster dieser Seite – wie bei jedem Aufruf einer Website – deine IP-Adresse und
-      deinen Browsertyp; darauf hat die App selbst keinen Einfluss.
-    </p>
-
-    <p class="about__meta">
-      Kostenlos · werbefrei · quelloffen ·
-      <a href="https://github.com/Manuel-Steinberg/RunTrek" rel="noopener">Quellcode auf GitHub</a>
-    </p>
+  <footer class="site-foot">
+    <nav class="site-foot__nav" aria-label="Weitere Informationen">
+      <a href="./faq.html">Fragen &amp; Antworten</a>
+      <a href="./datenschutz.html">Datenschutz</a>
+      <a href="https://github.com/Manuel-Steinberg/RunTrek" rel="noopener">Quellcode</a>
+    </nav>
+    <p class="site-foot__meta">Kostenlos · werbefrei · ohne Konto · Daten bleiben auf dem Gerät</p>
   </footer>
 
 </main>
