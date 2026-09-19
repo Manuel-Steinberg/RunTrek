@@ -6,13 +6,13 @@
  * Es werden ausschließlich eigene (same-origin) GET-Requests bedient.
  */
 
-const VERSION = 'v2';
+const VERSION = 'v4';
 const CACHE = 'schuhtracker-' + VERSION;
 
+// Einstiegspunkt ist das Verzeichnis-Root ('./' -> index.html). Ein direkter
+// Aufruf von index.html landet offline über den Navigations-Fallback hier.
 const SHELL = [
   './',
-  './index.html',
-  './shoetracker.html',
   './manifest.webmanifest',
   './assets/css/app.css',
   './assets/js/app.js',
@@ -62,7 +62,7 @@ self.addEventListener('fetch', (event) => {
           cachePut(request, response.clone());
           return response;
         })
-        .catch(() => caches.match('./shoetracker.html').then((cached) => cached || offlineResponse()))
+        .catch(() => caches.match('./').then((cached) => cached || offlineResponse()))
     );
     return;
   }

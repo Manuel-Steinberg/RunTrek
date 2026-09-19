@@ -6,8 +6,7 @@ ohne Konto, ohne Server, ohne Tracker.
 ## Aufbau
 
 ```
-shoetracker.html          App-Shell (semantisches Markup, keine Logik)
-index.html                Weiterleitung, damit das Verzeichnis-Root nicht 404t
+index.html                App-Shell (semantisches Markup, keine Logik)
 assets/css/app.css        Design-Tokens + Komponenten
 assets/js/boot.js         Theme + beforeinstallprompt, blockierend im <head>
 assets/js/app.js          Anwendungslogik (IIFE, keine Abhängigkeiten)
@@ -26,7 +25,7 @@ aber ohne Offline-Cache und ohne Installierbarkeit.
 
 ```bash
 python -m http.server 8000
-# http://127.0.0.1:8000/shoetracker.html
+# http://127.0.0.1:8000/
 ```
 
 ## Datenhaltung
@@ -60,7 +59,7 @@ statt die App scheitern zu lassen.
 
 Die App lädt nichts nach. Keine Google Fonts, kein CDN, keine Analytics –
 die einzigen Requests gehen an die eigenen Dateien. Als Schrift dient der
-System-Font-Stack, als Icons ein Inline-SVG-Sprite in `shoetracker.html`.
+System-Font-Stack, als Icons ein Inline-SVG-Sprite in `index.html`.
 
 ## Service Worker aktualisieren
 
@@ -75,28 +74,29 @@ sie offline nicht verfügbar.
 ## GitHub Pages
 
 Läuft ohne Anpassungen: alle Pfade sind relativ, funktionieren also auch im
-Unterverzeichnis eines Projekt-Sites (`https://<user>.github.io/RunTrek/`).
-`index.html` leitet auf `shoetracker.html` weiter, `.nojekyll` verhindert, dass
-Jekyll Dateien mit führendem Unterstrich (`_headers`) verschluckt.
+Unterverzeichnis eines Projekt-Sites. `.nojekyll` verhindert, dass Jekyll
+Dateien mit führendem Unterstrich (`_headers`) verschluckt.
+
+Die App ist die `index.html` und liegt damit direkt unter
+`https://<user>.github.io/RunTrek/` – das ist die Adresse zum Teilen.
 
 Zwei Einschränkungen:
 
 - **`_headers` ist dort wirkungslos** – die Datei versteht nur Netlify und
   Cloudflare Pages. GitHub Pages erlaubt keine eigenen HTTP-Header, damit
   entfallen `frame-ancestors`, HSTS und `Permissions-Policy`. Die `<meta>`-CSP
-  in `shoetracker.html` greift weiterhin und ist dort die Obergrenze;
+  in `index.html` greift weiterhin und ist dort die Obergrenze;
   gegen Framing bleibt nichts übrig, weil `frame-ancestors` als `<meta>`
   laut Spezifikation ignoriert wird.
 - HTTPS liefert GitHub Pages von sich aus – die Voraussetzung für Service
   Worker und Installierbarkeit ist also erfüllt.
 
-Soll die App direkt unter `/` statt unter `/shoetracker.html` liegen, kann
-`shoetracker.html` in `index.html` umbenannt werden. Dann müssen `start_url`
-und `shortcuts` in `manifest.webmanifest`, die `SHELL`-Liste und der
+Wird die App je umbenannt oder verschoben, müssen `start_url`, `id` und
+`shortcuts` in `manifest.webmanifest`, die `SHELL`-Liste und der
 Navigations-Fallback in `sw.js` sowie `rel="canonical"` mitgezogen werden.
 
 ## Icons neu erzeugen
 
-Die PNGs stammen aus denselben Pfaddaten wie `#i-shoe` in `shoetracker.html`.
+Die PNGs stammen aus denselben Pfaddaten wie `#i-shoe` in `index.html`.
 Werden sie geändert, müssen `assets/icons/icon.svg` und die PNGs zusammen
 angepasst werden.

@@ -1,11 +1,11 @@
 {
-  "id": "./shoetracker.html",
+  "id": "./",
   "name": "SchuhTracker – Laufschuh-Kilometerzähler",
   "short_name": "SchuhTracker",
   "description": "Kilometer deiner Laufschuhe tracken und Verschleiß im Blick behalten. Offline nutzbar, alle Daten bleiben auf dem Gerät.",
   "lang": "de",
   "dir": "ltr",
-  "start_url": "./shoetracker.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -44,12 +44,12 @@
     {
       "name": "Lauf eintragen",
       "short_name": "Lauf",
-      "url": "./shoetracker.html#lauf"
+      "url": "./#lauf"
     },
     {
       "name": "Statistik",
       "short_name": "Statistik",
-      "url": "./shoetracker.html#statistik"
+      "url": "./#statistik"
     }
   ]
 }

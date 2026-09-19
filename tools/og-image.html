@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>SchuhTracker – Vorlage für das Sharing-Bild (1200×630)</title>
+<style>
+/* Quelle für assets/og/og-image.png. Rendern:
+   chrome --headless --screenshot --window-size=1200,630 tools/og-image.html
+   Farben und Radien sind bewusst identisch zu den Dark-Tokens in
+   assets/css/app.css – das Bild soll aussehen wie die App, nicht wie ein Logo. */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --surface: #141218;
+  --surface-1: #1d1b20;
+  --surface-variant: #2b2930;
+  --on-surface: #e6e1e5;
+  --on-surface-variant: #cac4d0;
+  --primary: #d0bcff;
+  --primary-container: #4f378b;
+  --on-primary-container: #eaddff;
+  --ok: #62d3a4;
+  --ok-bg: #123d2c;
+  --ok-fg: #9ef2cb;
+  --warn: #efbe58;
+  --warn-bg: #43330a;
+  --warn-fg: #ffdf9e;
+  --font: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Roboto, "Noto Sans", Arial, sans-serif;
+}
+
+html, body { width: 1200px; height: 630px; }
+
+body {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 56px;
+  padding: 0 72px;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Zwei weiche Lichtquellen in Primärfarbe: gibt der Fläche Tiefe,
+   ohne dass ein Verlauf über den Texten liegt. */
+body::before,
+body::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  z-index: 0;
+}
+body::before {
+  width: 900px; height: 900px;
+  top: -420px; left: -260px;
+  background: radial-gradient(circle, rgba(103, 80, 164, 0.55), transparent 62%);
+}
+body::after {
+  width: 760px; height: 760px;
+  right: -240px; bottom: -380px;
+  background: radial-gradient(circle, rgba(208, 188, 255, 0.20), transparent 64%);
+}
+
+.pane { position: relative; z-index: 1; }
+.left { width: 600px; }
+.right { width: 400px; }
+
+.brand { display: flex; align-items: center; gap: 18px; margin-bottom: 30px; }
+.brand__mark {
+  width: 76px; height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.brand__mark svg {
+  width: 44px; height: 44px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.brand__name { font-size: 46px; font-weight: 700; letter-spacing: -0.5px; }
+
+.headline {
+  font-size: 58px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -1.2px;
+}
+.headline em { font-style: normal; color: var(--primary); }
+
+.sub {
+  margin-top: 22px;
+  font-size: 26px;
+  line-height: 1.4;
+  color: var(--on-surface-variant);
+}
+
+.pills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+.pill {
+  padding: 9px 18px;
+  border: 1px solid var(--surface-variant);
+  border-radius: 999px;
+  background: rgba(29, 27, 32, 0.8);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--on-surface-variant);
+}
+
+.url {
+  margin-top: 36px;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--primary);
+}
+
+/* Rechte Seite: echte Kartenoptik aus der App statt Dekoration. */
+.cards { display: grid; gap: 16px; }
+.card {
+  display: grid;
+  gap: 14px;
+  padding: 20px 22px;
+  border: 1px solid var(--surface-variant);
+  border-radius: 26px;
+  background: var(--surface-1);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+.card__head { display: flex; align-items: center; gap: 14px; }
+.card__emoji {
+  width: 52px; height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--surface);
+  font-size: 26px;
+  line-height: 1;
+}
+.card__text { flex: 1; min-width: 0; }
+.card__name { font-size: 21px; font-weight: 700; line-height: 1.2; }
+.card__brand { margin-top: 3px; font-size: 15px; color: var(--on-surface-variant); }
+.badge {
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge--ok { background: var(--ok-bg); color: var(--ok-fg); }
+.badge--warn { background: var(--warn-bg); color: var(--warn-fg); }
+
+.meter { display: grid; gap: 7px; }
+.meter__labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  color: var(--on-surface-variant);
+}
+.meter__labels b { color: var(--on-surface); }
+.meter__track {
+  height: 12px;
+  border-radius: 999px;
+  background: var(--surface-variant);
+  overflow: hidden;
+}
+.meter__bar { height: 100%; border-radius: 999px; }
+.meter__bar--ok { width: 41%; background: var(--ok); }
+.meter__bar--warn { width: 87%; background: var(--warn); }
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-radius: 26px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+.total__label { font-size: 16px; font-weight: 600; opacity: 0.85; }
+.total__value { font-size: 34px; font-weight: 700; letter-spacing: -0.5px; }
+</style>
+</head>
+<body>
+
+<div class="pane left">
+  <div class="brand">
+    <div class="brand__mark">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 16.3h14.6a4.2 4.2 0 0 0 4.2-4.2c0-1-.6-1.9-1.6-2.2l-5.1-1.8-2.6-3-3.1 1.1v3.3H4.2A2.2 2.2 0 0 0 2 11.7z"/>
+        <path d="M2 16.3v1.9h19"/>
+        <path d="m8.6 9.5 2.5 1.7M11.4 7.2l2.3 2.6"/>
+      </svg>
+    </div>
+    <div class="brand__name">SchuhTracker</div>
+  </div>
+
+  <h1 class="headline">Wie viele Kilometer<br>hat dein <em>Laufschuh</em>?</h1>
+
+  <p class="sub">Laufleistung erfassen, Verschleiß rechtzeitig sehen –<br>offline, ohne Konto, ohne Tracking.</p>
+
+  <div class="pills">
+    <span class="pill">Offline nutzbar</span>
+    <span class="pill">Daten bleiben lokal</span>
+    <span class="pill">Kostenlos</span>
+  </div>
+
+  <div class="url">manuel-steinberg.github.io/RunTrek</div>
+</div>
+
+<div class="pane right">
+  <div class="cards">
+    <div class="card">
+      <div class="card__head">
+        <div class="card__emoji">👟</div>
+        <div class="card__text">
+          <div class="card__name">Pegasus 41</div>
+          <div class="card__brand">Nike · Training</div>
+        </div>
+        <span class="badge badge--ok">Gut</span>
+      </div>
+      <div class="meter">
+        <div class="meter__labels"><span>331 von 800 km</span><b>41 %</b></div>
+        <div class="meter__track"><div class="meter__bar meter__bar--ok"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__head">
+        <div class="card__emoji">🏃</div>
+        <div class="card__text">
+          <div class="card__name">Endorphin Speed</div>
+          <div class="card__brand">Saucony · Tempo</div>
+        </div>
+        <span class="badge badge--warn">Bald fällig</span>
+      </div>
+      <div class="meter">
+        <div class="meter__labels"><span>609 von 700 km</span><b>87 %</b></div>
+        <div class="meter__track"><div class="meter__bar meter__bar--warn"></div></div>
+      </div>
+    </div>
+
+    <div class="total">
+      <span class="total__label">Gesamt gelaufen</span>
+      <span class="total__value">1 842 km</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

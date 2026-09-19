@@ -13,6 +13,7 @@
 
   var STORAGE_KEY = 'schuh_tracker_data';
   var THEME_KEY = 'schuh_tracker_theme';
+  var ONBOARD_KEY = 'schuh_tracker_onboarded';
   var SVG_NS = 'http://www.w3.org/2000/svg';
   var DEFAULT_ICON = '👟';
   var BACKUP_VERSION = 1;
@@ -122,6 +123,13 @@
         return true;
       } catch (error) {
         return false;
+      }
+    },
+    remove: function (key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        /* Nichts zu tun: Was nicht gespeichert werden konnte, liegt auch nicht da. */
       }
     }
   };
@@ -277,6 +285,36 @@
     return meter;
   }
 
+  // ---------------------------------------------------------- Onboarding
+
+  var onboardingEl = byId('onboarding');
+
+  /* Erledigt, sobald der Block weggeklickt wurde oder bereits Schuhe da sind –
+     Letzteres faengt Bestandsnutzer ab, die das Flag noch nicht haben. */
+  function onboardingDone() {
+    return storage.read(ONBOARD_KEY) === '1' || state.shoes.length > 0;
+  }
+
+  function syncOnboarding() {
+    var done = onboardingDone();
+    onboardingEl.hidden = done;
+    // Spiegelt den Zustand ins <html>, damit boot.js den Block beim naechsten
+    // Start schon vor dem ersten Frame ausblendet (siehe CSS).
+    if (done) document.documentElement.dataset.onboarded = '1';
+    return done;
+  }
+
+  function finishOnboarding() {
+    storage.write(ONBOARD_KEY, '1');
+    syncOnboarding();
+  }
+
+  function openAddShoeDialog() {
+    byId('shoe-purchase-date').value = todayIso();
+    openDialog(byId('dialog-add-shoe'));
+    byId('shoe-name').focus();
+  }
+
   // --------------------------------------------------------- Rendering: Schuhe
 
   var shoesList = byId('shoes-list');
@@ -285,6 +323,7 @@
   function renderShoes() {
     var shoes = visibleShoes();
     var totals = kilometresByShoe();
+    var onboarding = !syncOnboarding();
 
     shoesList.replaceChildren();
 
@@ -293,7 +332,15 @@
     byId('empty-text').textContent = archived
       ? 'Ausgemusterte Schuhe landen hier, sobald du sie archivierst.'
       : 'Füge deinen ersten Laufschuh hinzu, um Kilometer und Verschleiß zu tracken.';
-    shoesEmpty.hidden = shoes.length > 0;
+    // Waehrend der Einfuehrung waere der leere Zustand nur eine zweite,
+    // schwaechere Variante derselben Aussage.
+    shoesEmpty.hidden = shoes.length > 0 || onboarding;
+    byId('empty-action').hidden = archived;
+
+    // Beides ist ohne Inhalt sinnlos: sortieren laesst sich erst ab zwei
+    // Schuhen, und ein Archiv-Filter hilft erst, wenn es etwas zu filtern gibt.
+    byId('reorder-hint').hidden = shoes.length < 2;
+    byId('shoes-filter').hidden = state.shoes.length === 0;
 
     shoes.forEach(function (shoe) {
       shoesList.appendChild(buildShoeCard(shoe, totals.get(shoe.id) || 0));
@@ -400,6 +447,12 @@
     select.replaceChildren();
 
     var active = state.shoes.filter(function (shoe) { return !shoe.archived; });
+
+    // Ein deaktiviertes Auswahlfeld erklaert nicht, was zu tun ist. Der
+    // Hinweis nimmt den Platz des Formulars ein und fuehrt zum naechsten Schritt.
+    byId('log-no-shoes').hidden = active.length > 0;
+    byId('run-form').hidden = active.length === 0;
+
     if (active.length === 0) {
       var placeholder = el('option', null, 'Keine aktiven Schuhe verfügbar');
       placeholder.value = '';
@@ -468,6 +521,10 @@
       button.tabIndex = selected ? 0 : -1;
       byId('panel-' + name).hidden = !selected;
     });
+
+    // Der Info-Bereich gehoert zur Startansicht; unter einem Formular oder
+    // der Statistik waere er nur Ballast.
+    byId('about').hidden = tab !== 'shoes';
 
     if (tab === 'shoes') renderShoes();
     if (tab === 'log') { populateShoeSelect(); renderRecentRuns(); }
@@ -578,6 +635,7 @@
     byId('shoe-icon').value = DEFAULT_ICON;
 
     closeDialog(byId('dialog-add-shoe'));
+    finishOnboarding();
     ui.filter = 'active';
     syncFilterChips();
     renderShoes();
@@ -668,6 +726,36 @@
       closeDialog(byId('dialog-shoe-detail'));
       renderShoes();
       showToast('Schuh gelöscht.');
+    });
+  }
+
+  /**
+   * Entfernt jede Spur der App aus diesem Browser – Daten, Design und den
+   * Merker fuer die Einfuehrung. Danach steht die App wie beim ersten Start da.
+   */
+  function deleteAllData() {
+    askConfirm(
+      'Alle Daten löschen?',
+      'Schuhe, Läufe und Einstellungen werden unwiderruflich aus diesem Browser ' +
+      'entfernt. Bereits exportierte Backup-Dateien bleiben davon unberührt.',
+      'Endgültig löschen'
+    ).then(function (confirmed) {
+      if (!confirmed) return;
+
+      storage.remove(STORAGE_KEY);
+      storage.remove(THEME_KEY);
+      storage.remove(ONBOARD_KEY);
+
+      state = { shoes: [], runs: [] };
+      ui.detailId = null;
+      ui.filter = 'active';
+
+      delete document.documentElement.dataset.onboarded;
+      delete document.documentElement.dataset.theme;
+      syncThemeButton(currentTheme());
+      syncFilterChips();
+      switchTab('shoes');
+      showToast('Alle Daten wurden gelöscht.');
     });
   }
 
