@@ -251,6 +251,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: transparent;
   font-size: 0.875rem;
   font-weight: 500;
+  /* .btn wird auch auf <a> benutzt (Unterseiten) - ohne das bleibt die
+     Unterstreichung des Browsers stehen. */
+  text-decoration: none;
   cursor: pointer;
   transition: background-color 0.15s, opacity 0.15s, border-color 0.15s;
 }
@@ -725,10 +728,6 @@ textarea.input { min-height: 72px; resize: vertical; }
 }
 .onboarding__privacy > .icon { flex: none; margin-top: 1px; }
 
-.onboarding__actions { display: grid; gap: 6px; }
-.onboarding__skip { color: var(--on-surface-variant); }
-.onboarding__skip:hover { background: var(--surface-variant); }
-
 /* ---------- Notice ---------- */
 .notice {
   display: grid;
@@ -743,58 +742,105 @@ textarea.input { min-height: 72px; resize: vertical; }
 
 .rule { width: 100%; height: 1px; margin: 2px 0; border: 0; background: var(--surface-variant); }
 
-/* ---------- Über / FAQ / Datenschutz ---------- */
-.about {
+/* ---------- Fussbereich (App und Unterseiten) ---------- */
+.site-foot {
   display: grid;
-  gap: 12px;
-  margin-top: 32px;
-  padding-top: 24px;
+  gap: 10px;
+  justify-items: center;
+  margin-top: 28px;
+  padding-top: 16px;
   border-top: 1px solid var(--surface-variant);
-  color: var(--on-surface-variant);
-  font-size: 0.8rem;
+  text-align: center;
 }
-.about__title { font-size: 1rem; font-weight: 700; color: var(--on-surface); }
-.about__subtitle { margin-top: 12px; font-size: 0.9rem; font-weight: 600; color: var(--on-surface); }
-.about__text { line-height: 1.6; }
-.about code {
+/* In index.html steckt der Fuss in .main und erbt dessen Breite; auf den
+   Unterseiten steht er frei und braucht die Begrenzung selbst. */
+.page .site-foot {
+  width: 100%;
+  max-width: var(--page);
+  margin-inline: auto;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+}
+.site-foot__nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 8px;
+}
+.site-foot__nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  color: var(--on-surface-variant);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.site-foot__nav a:hover { color: var(--primary); background: var(--surface-variant); }
+.site-foot__meta { max-width: 34ch; font-size: 0.7rem; color: var(--on-surface-variant); }
+
+/* ---------- Unterseiten (FAQ, Datenschutz) ---------- */
+.page__bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  width: 100%;
+  max-width: var(--page);
+  margin-inline: auto;
+  padding: 6px 12px;
+  padding-top: calc(6px + env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-variant);
+}
+.page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding-inline: 6px;
+  border-radius: 8px;
+  color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+.page__back:hover { background: var(--surface-variant); }
+
+.page__main {
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 22px;
+  width: 100%;
+  max-width: var(--page);
+  margin-inline: auto;
+  padding: 20px 16px 8px;
+}
+.page__title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.015em; }
+.page__lead { font-size: 0.95rem; line-height: 1.6; color: var(--on-surface-variant); }
+
+.page__section { display: grid; gap: 8px; }
+.page__h2 { font-size: 1rem; font-weight: 700; }
+.page__text { font-size: 0.875rem; line-height: 1.65; color: var(--on-surface-variant); }
+.page__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--on-surface-variant);
+}
+.page__cta { margin-top: 4px; }
+
+.page code {
   padding: 1px 5px;
   border-radius: 5px;
   background: var(--surface-2);
   font-size: 0.92em;
   overflow-wrap: anywhere;
 }
-.about__meta { margin-top: 8px; font-size: 0.72rem; }
-
-.faq {
-  border: 1px solid var(--surface-variant);
-  border-radius: var(--radius-m);
-  background: var(--surface-1);
-}
-.faq__q {
-  /* Flex statt float: sonst rutscht der Marker bei zweizeiligen Fragen
-     unter den Text. */
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 14px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--on-surface);
-  cursor: pointer;
-  list-style: none;
-}
-/* Eigener Marker: das UA-Dreieck lässt sich sonst nicht mittig ausrichten. */
-.faq__q::-webkit-details-marker { display: none; }
-.faq__q::after {
-  content: "+";
-  flex: none;
-  font-size: 1.1em;
-  font-weight: 400;
-  color: var(--on-surface-variant);
-}
-.faq[open] .faq__q::after { content: "−"; }
-.faq__a { padding: 0 14px 13px; line-height: 1.6; }
 
 /* ---------- Motion ---------- */
 @media (prefers-reduced-motion: reduce) {

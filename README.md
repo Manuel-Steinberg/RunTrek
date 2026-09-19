@@ -24,8 +24,9 @@ diesem Mischstil: englische Bezeichner, deutsche Kommentare und Nutzertexte.
 ## Aufbau
 
 ```
-index.html                App-Shell: gesamtes Markup, Icon-Sprite, JSON-LD, FAQ
-shoetracker.html          Weiterleitung von der alten Adresse auf ./
+index.html                App-Shell: Markup der App, Icon-Sprite, JSON-LD
+faq.html                  Inhaltsseite: Fragen & Antworten (+ FAQPage-JSON-LD)
+datenschutz.html          Inhaltsseite: Datenschutzerklärung
 assets/css/app.css        Design-Tokens + Komponenten (~800 Zeilen)
 assets/js/boot.js         Theme, Onboarding-Flag, beforeinstallprompt (blockierend)
 assets/js/app.js          Anwendungslogik (IIFE, keine Abhängigkeiten, ~1250 Zeilen)
@@ -210,7 +211,8 @@ Design-Tokens (Material-3-nah) auf `:root`, dunkle Variante zweimal notiert:
 `@media (prefers-color-scheme: dark)` ohne Gegenwahl. Kein `light-dark()`, damit
 ältere WebViews mitkommen. Danach Abschnitte für Reset, App-Bar, Layout,
 Buttons, Chips, Karten, Progress, Formulare, Statistik, Listen, Leerzustand,
-Bottom-Navigation, Dialoge, Toast, Onboarding, Über/FAQ und Motion. Farben
+Bottom-Navigation, Dialoge, Toast, Onboarding, Fussbereich, Unterseiten
+(`.page__*`) und Motion. Farben
 gehören als Token nach oben, nicht in die Komponenten.
 
 ## Konventionen
@@ -251,10 +253,11 @@ Die App lädt nichts nach. Keine Google Fonts, kein CDN, keine Analytics –
 die einzigen Requests gehen an die eigenen Dateien. Als Schrift dient der
 System-Font-Stack, als Icons ein Inline-SVG-Sprite in `index.html`.
 
-Der `<footer class="about">` in `index.html` ist zugleich die
-Datenschutzerklärung und nennt die Speicherschlüssel im Klartext. Er sagt
-auch, was die App *nicht* verhindern kann: Der Hoster sieht wie bei jedem
-Website-Aufruf IP-Adresse und Browsertyp.
+Die Datenschutzerklärung steht als eigene Seite in `datenschutz.html` und
+nennt die Speicherschlüssel im Klartext. Sie sagt auch, was die App *nicht*
+verhindern kann: Der Hoster sieht wie bei jedem Website-Aufruf IP-Adresse und
+Browsertyp. Verlinkt ist sie aus dem Fussbereich jeder Seite und zusätzlich
+über `<link rel="privacy-policy">` im `<head>` der App.
 
 ## Onboarding
 
@@ -265,15 +268,17 @@ Der Willkommensblock (`#onboarding`) steht als fertiges Markup in
 - `boot.js` blendet ihn für Wiederkehrer vor dem ersten Frame aus
   (`:root[data-onboarded]` im CSS) – kein Aufblitzen.
 
-Er verschwindet mit dem ersten angelegten Schuh oder über „Später“.
-Bestandsnutzer ohne Flag sehen ihn nie, weil `onboardingDone()` auch dann
-wahr ist, wenn bereits Schuhe existieren.
+Er verschwindet mit dem ersten angelegten Schuh – und nur dadurch. Einen
+„Später“-Knopf gab es kurzzeitig; er tauschte die Willkommenskarte gegen den
+leeren Zustand und brachte dem Nutzer nichts, deshalb ist er wieder raus.
+Bestandsnutzer ohne Flag sehen den Block nie, weil `onboardingDone()` auch
+dann wahr ist, wenn bereits Schuhe existieren.
 
 ## Teilen & SEO
 
-Die kanonische Adresse steht an vier Stellen absolut im Code:
-`rel="canonical"` und `og:url` in `index.html`, `<loc>` in `sitemap.xml`
-und die `Sitemap:`-Zeile in `robots.txt`. Bei einem Umzug auf eine eigene
+Die kanonische Adresse steht absolut im Code: `rel="canonical"` und `og:url`
+in `index.html`, `faq.html` und `datenschutz.html`, die drei `<loc>` in
+`sitemap.xml` und die `Sitemap:`-Zeile in `robots.txt`. Bei einem Umzug auf eine eigene
 Domain müssen alle vier mitgezogen werden – ebenso `og:image` und
 `twitter:image`, denn relative Pfade lösen die meisten Social-Scraper nicht auf.
 `llms.txt` nennt dieselbe Adresse und gehört ebenfalls dazu.
@@ -283,8 +288,8 @@ Domain müssen alle vier mitgezogen werden – ebenso `og:image` und
 *nicht* in der `SHELL`-Liste von `sw.js`: Die App zeigt es nie an, nur fremde
 Crawler laden es – offline zwischenzuspeichern wäre verschenkter Platz.
 
-Die FAQ im `<footer>` und das `FAQPage`-JSON-LD im `<head>` müssen wortgleich
-bleiben. Sichtbarer Text und Markup dürfen laut Google-Richtlinie nicht
+Der sichtbare FAQ-Text in `faq.html` und das `FAQPage`-JSON-LD im `<head>`
+derselben Datei müssen wortgleich bleiben. Sichtbarer Text und Markup dürfen laut Google-Richtlinie nicht
 auseinanderlaufen; wer eine Antwort ändert, ändert beide Stellen. Dasselbe gilt
 für die `featureList` im `WebApplication`-JSON-LD, wenn Funktionen wegfallen.
 
@@ -335,12 +340,16 @@ Wird die App je umbenannt oder verschoben, müssen `start_url`, `id` und
 Navigations-Fallback in `sw.js` sowie die vier absoluten Adressen aus
 „Teilen & SEO“ mitgezogen werden.
 
-`shoetracker.html` ist die frühere Adresse der App und nur noch eine
-Weiterleitung auf `./`. GitHub Pages kann keine 301 ausliefern, deshalb
-`meta refresh` plus `canonical`. Die Datei steht bewusst **nicht** in
-`sitemap.xml` und ist in `robots.txt` **nicht** gesperrt: Eine gesperrte URL
-wird nicht gecrawlt, damit sähe Google weder `noindex` noch `canonical` und
-die alte Adresse bliebe im Index stehen.
+Die App lag kurzzeitig unter `shoetracker.html`. Diese Adresse war rund
+20 Minuten öffentlich erreichbar – zu kurz, um gecrawlt oder geteilt worden zu
+sein – und wurde deshalb ersatzlos entfernt statt eine Weiterleitung mitzu-
+schleppen. Sollte wider Erwarten doch ein Link darauf auftauchen, liefert
+GitHub Pages dort seine 404-Seite.
+
+Inhalte gehören nicht in die App-Shell: `index.html` trägt nur die Anwendung,
+FAQ und Datenschutz stehen auf eigenen URLs. Das hält die App schlank, gibt
+beiden Themen eine eigene indexierbare Seite und erspart dem täglichen Nutzer
+eine Textwand unter seiner Schuhliste.
 
 ## Typische Änderungen
 
@@ -368,7 +377,7 @@ an.
 
 **Texte ändern** – Nutzersichtbare Zeichenketten stehen im Markup oder direkt an
 der Aufrufstelle im JS, eine Übersetzungsschicht gibt es nicht. Wer FAQ-Text
-ändert, ändert zusätzlich das `FAQPage`-JSON-LD.
+in `faq.html` ändert, ändert dort zusätzlich das `FAQPage`-JSON-LD.
 
 **Nach jeder Änderung** – `VERSION` in `sw.js` erhöhen, neue Dateien in `SHELL`
 eintragen, über `http://` gegenprüfen (nicht `file://`), Konsole auf

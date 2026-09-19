@@ -6,13 +6,15 @@
  * Es werden ausschließlich eigene (same-origin) GET-Requests bedient.
  */
 
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE = 'schuhtracker-' + VERSION;
 
 // Einstiegspunkt ist das Verzeichnis-Root ('./' -> index.html). Ein direkter
 // Aufruf von index.html landet offline über den Navigations-Fallback hier.
 const SHELL = [
   './',
+  './faq.html',
+  './datenschutz.html',
   './manifest.webmanifest',
   './assets/css/app.css',
   './assets/js/app.js',

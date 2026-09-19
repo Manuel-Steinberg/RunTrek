@@ -22,9 +22,12 @@ alle drei Schlüssel wieder. Oberfläche und Inhalte sind deutsch.
 - [SchuhTracker](https://manuel-steinberg.github.io/RunTrek/): Die vollständige
   Anwendung als eine einzige HTML-Seite. Die Bereiche Schuhe, Lauf eintragen und
   Statistik sind Tabs derselben URL (`#lauf`, `#statistik`), keine eigenen Seiten.
-- [Über SchuhTracker, FAQ und Datenschutz](https://manuel-steinberg.github.io/RunTrek/#about):
-  Funktionsumfang in Prosa, Antworten zu Haltbarkeit von Laufschuhen, Offline-Nutzung
-  und Backup sowie die Datenschutzerklärung. Im Seitenquelltext ohne JavaScript lesbar.
+- [Fragen & Antworten](https://manuel-steinberg.github.io/RunTrek/faq.html):
+  Haltbarkeit von Laufschuhen, Offline-Nutzung, Backup und Gerätewechsel, Kosten.
+  Statische Seite, ohne JavaScript lesbar.
+- [Datenschutz](https://manuel-steinberg.github.io/RunTrek/datenschutz.html):
+  Welche Speicherschlüssel belegt werden, was nicht passiert (keine Cookies, keine
+  Tracker) und wie sich alle Daten wieder löschen lassen.
 
 ## Quellcode
 
@@ -38,5 +41,5 @@ alle drei Schlüssel wieder. Oberfläche und Inhalte sind deutsch.
 
 - [Web App Manifest](https://manuel-steinberg.github.io/RunTrek/manifest.webmanifest):
   Maschinenlesbare Metadaten zu Name, Beschreibung, Icons und Kategorien.
-- [sitemap.xml](https://manuel-steinberg.github.io/RunTrek/sitemap.xml): Enthält
-  bewusst nur die eine Seite, weil die App eine Single-Page-Anwendung ist.
+- [sitemap.xml](https://manuel-steinberg.github.io/RunTrek/sitemap.xml): Enthält die
+  App sowie die beiden Inhaltsseiten – die Tabs der App sind nur Fragmente derselben URL.

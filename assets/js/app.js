@@ -1185,13 +1185,6 @@
       byId(id).addEventListener('click', openAddShoeDialog);
     });
 
-    // Wer den Dialog wieder abbricht, soll die Einfuehrung noch vorfinden –
-    // sie verschwindet erst mit dem ersten Schuh oder auf ausdruecklichen Wunsch.
-    byId('onboarding-skip').addEventListener('click', function () {
-      finishOnboarding();
-      renderShoes();
-    });
-
     // Export / Import
     byId('export-csv-btn').addEventListener('click', exportCsv);
     byId('delete-all-btn').addEventListener('click', deleteAllData);
