@@ -771,6 +771,12 @@ textarea.input { min-height: 72px; resize: vertical; }
   background: var(--surface-1);
 }
 .faq__q {
+  /* Flex statt float: sonst rutscht der Marker bei zweizeiligen Fragen
+     unter den Text. */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 11px 14px;
   font-size: 0.82rem;
   font-weight: 600;
@@ -782,8 +788,8 @@ textarea.input { min-height: 72px; resize: vertical; }
 .faq__q::-webkit-details-marker { display: none; }
 .faq__q::after {
   content: "+";
-  float: right;
-  margin-left: 10px;
+  flex: none;
+  font-size: 1.1em;
   font-weight: 400;
   color: var(--on-surface-variant);
 }

@@ -341,6 +341,8 @@
     // Schuhen, und ein Archiv-Filter hilft erst, wenn es etwas zu filtern gibt.
     byId('reorder-hint').hidden = shoes.length < 2;
     byId('shoes-filter').hidden = state.shoes.length === 0;
+    // Waehrend der Einfuehrung stuende "Meine Schuhe" ueber einer leeren Flaeche.
+    byId('shoes-head').hidden = onboarding;
 
     shoes.forEach(function (shoe) {
       shoesList.appendChild(buildShoeCard(shoe, totals.get(shoe.id) || 0));
