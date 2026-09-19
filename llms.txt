@@ -1,0 +1,41 @@
+# SchuhTracker
+
+> Kostenloser Kilometerzähler für Laufschuhe: Paare anlegen, nach jedem Lauf die
+> Distanz eintragen und pro Schuh Kilometerstand, Verschleiß in Prozent und
+> Restlaufleistung sehen. Installierbare Progressive Web App, vollständig offline
+> nutzbar, ohne Konto, ohne Server, ohne Tracking.
+
+Die App warnt ab 75 Prozent der eingestellten Laufleistung mit „Demnächst fällig“
+und ab 100 Prozent mit „Verschlissen“. Die Grenze ist pro Schuh einstellbar und
+startet bei 800 Kilometern. Mehrere Paare lassen sich sortieren und ins Archiv
+verschieben, ohne ihre Historie zu verlieren.
+
+Alle Daten liegen ausschließlich im `localStorage` des Browsers (Schlüssel
+`schuh_tracker_data` und `schuh_tracker_theme`). Es gibt keinen Server, keine
+Anmeldung, keine Cloud und keine Analyse- oder Werbeskripte; die Seite lädt
+ausschließlich ihre eigenen Dateien. Backups exportiert man selbst als JSON
+(Wiedereinspielen möglich) oder als CSV. Oberfläche und Inhalte sind deutsch.
+
+## App
+
+- [SchuhTracker](https://manuel-steinberg.github.io/RunTrek/): Die vollständige
+  Anwendung als eine einzige HTML-Seite. Die Bereiche Schuhe, Lauf eintragen und
+  Statistik sind Tabs derselben URL (`#lauf`, `#statistik`), keine eigenen Seiten.
+- [Über SchuhTracker, FAQ und Datenschutz](https://manuel-steinberg.github.io/RunTrek/#about):
+  Funktionsumfang in Prosa, Antworten zu Haltbarkeit von Laufschuhen, Offline-Nutzung
+  und Backup sowie die Datenschutzerklärung. Im Seitenquelltext ohne JavaScript lesbar.
+
+## Quellcode
+
+- [Repository auf GitHub](https://github.com/Manuel-Steinberg/RunTrek): Quelloffen,
+  ohne Build-Schritt und ohne Abhängigkeiten.
+- [README](https://github.com/Manuel-Steinberg/RunTrek/blob/main/README.md): Aufbau der
+  Dateien, Datenhaltung, Sicherheitsmodell (strikte CSP, kein `innerHTML`), lokales
+  Starten und Hinweise zum Service-Worker-Update.
+
+## Optional
+
+- [Web App Manifest](https://manuel-steinberg.github.io/RunTrek/manifest.webmanifest):
+  Maschinenlesbare Metadaten zu Name, Beschreibung, Icons und Kategorien.
+- [sitemap.xml](https://manuel-steinberg.github.io/RunTrek/sitemap.xml): Enthält
+  bewusst nur die eine Seite, weil die App eine Single-Page-Anwendung ist.

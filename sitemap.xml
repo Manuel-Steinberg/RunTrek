@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Eine einzige Seite: die App ist eine Single-Page-Anwendung, die Tabs sind
+     nur Fragmente (#lauf, #statistik) derselben URL und gehoeren nicht hierher.
+     shoetracker.html fehlt bewusst - das ist die alte Adresse und leitet um. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://manuel-steinberg.github.io/RunTrek/</loc>
+    <lastmod>2026-09-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

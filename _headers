@@ -7,7 +7,7 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: no-referrer
-  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=(), interest-cohort=()
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=(), browsing-topics=(), interest-cohort=()
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -15,3 +15,7 @@
 # Service Worker darf nie aus dem HTTP-Cache kommen, sonst bleiben Updates hängen.
 /sw.js
   Cache-Control: no-cache
+
+# Icons und OG-Bild aendern sich nur mit einem neuen Dateinamen bzw. Release.
+/assets/*
+  Cache-Control: public, max-age=604800

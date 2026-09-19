@@ -1176,15 +1176,27 @@
     byId('detail-delete-btn').addEventListener('click', deleteShoe);
     byId('dialog-shoe-detail').addEventListener('close', function () { ui.detailId = null; });
 
-    // FAB
-    byId('add-shoe-btn').addEventListener('click', function () {
-      byId('shoe-purchase-date').value = todayIso();
-      openDialog(byId('dialog-add-shoe'));
-      byId('shoe-name').focus();
+    // Alle Wege zum Anlegen eines Schuhs: FAB, leerer Zustand, Lauf-Tab
+    // und die Einfuehrung.
+    [
+      'add-shoe-btn',
+      'empty-action',
+      'log-add-shoe',
+      'onboarding-start'
+    ].forEach(function (id) {
+      byId(id).addEventListener('click', openAddShoeDialog);
+    });
+
+    // Wer den Dialog wieder abbricht, soll die Einfuehrung noch vorfinden –
+    // sie verschwindet erst mit dem ersten Schuh oder auf ausdruecklichen Wunsch.
+    byId('onboarding-skip').addEventListener('click', function () {
+      finishOnboarding();
+      renderShoes();
     });
 
     // Export / Import
     byId('export-csv-btn').addEventListener('click', exportCsv);
+    byId('delete-all-btn').addEventListener('click', deleteAllData);
     byId('export-json-btn').addEventListener('click', exportJson);
     byId('import-json-btn').addEventListener('click', function () { byId('import-file').click(); });
     byId('import-file').addEventListener('change', function (event) {
@@ -1226,6 +1238,7 @@
   function init() {
     load();
     syncThemeButton(currentTheme());
+    syncOnboarding();
     syncFilterChips();
 
     byId('run-date').value = todayIso();

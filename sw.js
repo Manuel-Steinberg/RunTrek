@@ -6,7 +6,7 @@
  * Es werden ausschließlich eigene (same-origin) GET-Requests bedient.
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = 'schuhtracker-' + VERSION;
 
 // Einstiegspunkt ist das Verzeichnis-Root ('./' -> index.html). Ein direkter

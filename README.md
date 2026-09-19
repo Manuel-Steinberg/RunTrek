@@ -7,11 +7,15 @@ ohne Konto, ohne Server, ohne Tracker.
 
 ```
 index.html                App-Shell (semantisches Markup, keine Logik)
+shoetracker.html          Weiterleitung von der alten Adresse auf ./
 assets/css/app.css        Design-Tokens + Komponenten
-assets/js/boot.js         Theme + beforeinstallprompt, blockierend im <head>
+assets/js/boot.js         Theme, Onboarding-Flag, beforeinstallprompt (blockierend)
 assets/js/app.js          Anwendungslogik (IIFE, keine Abhängigkeiten)
+assets/og/og-image.png    Vorschaubild für geteilte Links (1200×630)
+tools/og-image.html       Vorlage, aus der das Vorschaubild gerendert wird
 manifest.webmanifest      PWA-Metadaten
 sw.js                     Service Worker (App-Shell-Cache)
+sitemap.xml / robots.txt  Crawler-Wegweiser
 _headers                  Security-Header (nur Netlify / Cloudflare Pages)
 .nojekyll                 GitHub Pages: Dateien unverändert ausliefern
 ```
@@ -30,10 +34,14 @@ python -m http.server 8000
 
 ## Datenhaltung
 
-Alles liegt im `localStorage` des Browsers unter zwei Schlüsseln:
+Alles liegt im `localStorage` des Browsers unter drei Schlüsseln:
 
 - `schuh_tracker_data` – Schuhe und Läufe
 - `schuh_tracker_theme` – gewähltes Design
+- `schuh_tracker_onboarded` – Einführung wurde gesehen
+
+„Alle Daten von diesem Gerät löschen“ im Statistik-Tab entfernt alle drei
+Schlüssel. Danach startet die App wie beim allerersten Aufruf.
 
 Es gibt keinen Server und keine Synchronisierung. Daten verschwinden, wenn die
 Website-Daten des Browsers gelöscht werden – deshalb enthält der Statistik-Tab
@@ -60,6 +68,47 @@ statt die App scheitern zu lassen.
 Die App lädt nichts nach. Keine Google Fonts, kein CDN, keine Analytics –
 die einzigen Requests gehen an die eigenen Dateien. Als Schrift dient der
 System-Font-Stack, als Icons ein Inline-SVG-Sprite in `index.html`.
+
+Der `<footer class="about">` in `index.html` ist zugleich die
+Datenschutzerklärung und nennt die Speicherschlüssel im Klartext. Er sagt
+auch, was die App *nicht* verhindern kann: Der Hoster sieht wie bei jedem
+Website-Aufruf IP-Adresse und Browsertyp.
+
+## Onboarding
+
+Der Willkommensblock (`#onboarding`) steht als fertiges Markup in
+`index.html`, nicht im JavaScript. Zwei Gründe:
+
+- Crawler und langsame Verbindungen sehen sofort, was die App tut.
+- `boot.js` blendet ihn für Wiederkehrer vor dem ersten Frame aus
+  (`:root[data-onboarded]` im CSS) – kein Aufblitzen.
+
+Er verschwindet mit dem ersten angelegten Schuh oder über „Später“.
+Bestandsnutzer ohne Flag sehen ihn nie, weil `onboardingDone()` auch dann
+wahr ist, wenn bereits Schuhe existieren.
+
+## Teilen & SEO
+
+Die kanonische Adresse steht an vier Stellen absolut im Code:
+`rel="canonical"` und `og:url` in `index.html`, `<loc>` in `sitemap.xml`
+und die `Sitemap:`-Zeile in `robots.txt`. Bei einem Umzug auf eine eigene
+Domain müssen alle vier mitgezogen werden – ebenso `og:image` und
+`twitter:image`, denn relative Pfade lösen die meisten Social-Scraper nicht auf.
+
+`assets/og/og-image.png` ist das Vorschaubild für geteilte Links und wird aus
+`tools/og-image.html` gerendert (Headless Chrome, 1200×630). Es liegt bewusst
+*nicht* in der `SHELL`-Liste von `sw.js`: Die App zeigt es nie an, nur fremde
+Crawler laden es – offline zwischenzuspeichern wäre verschenkter Platz.
+
+Die FAQ im `<footer>` und das `FAQPage`-JSON-LD im `<head>` müssen wortgleich
+bleiben. Sichtbarer Text und Markup dürfen laut Google-Richtlinie nicht
+auseinanderlaufen; wer eine Antwort ändert, ändert beide Stellen.
+
+`robots.txt` und `sitemap.xml` greifen auf einer GitHub-Projektseite nur
+eingeschränkt: Crawler lesen `robots.txt` ausschließlich im Domain-Root
+(`manuel-steinberg.github.io/robots.txt`), nicht im Unterverzeichnis. Die
+Sitemap lässt sich dafür in der Google Search Console direkt einreichen.
+Mit eigener Domain funktionieren beide Dateien ohne Einschränkung.
 
 ## Service Worker aktualisieren
 
@@ -93,7 +142,15 @@ Zwei Einschränkungen:
 
 Wird die App je umbenannt oder verschoben, müssen `start_url`, `id` und
 `shortcuts` in `manifest.webmanifest`, die `SHELL`-Liste und der
-Navigations-Fallback in `sw.js` sowie `rel="canonical"` mitgezogen werden.
+Navigations-Fallback in `sw.js` sowie die vier absoluten Adressen aus
+„Teilen & SEO“ mitgezogen werden.
+
+`shoetracker.html` ist die frühere Adresse der App und nur noch eine
+Weiterleitung auf `./`. GitHub Pages kann keine 301 ausliefern, deshalb
+`meta refresh` plus `canonical`. Die Datei steht bewusst **nicht** in
+`sitemap.xml` und ist in `robots.txt` **nicht** gesperrt: Eine gesperrte URL
+wird nicht gecrawlt, damit sähe Google weder `noindex` noch `canonical` und
+die alte Adresse bliebe im Index stehen.
 
 ## Icons neu erzeugen
 
