@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="SchuhTracker">
+  <title>SchuhTracker</title>
+  <rect width="512" height="512" rx="113" fill="#6750a4"/>
+  <g transform="translate(66 66) scale(16.6)" fill="none" stroke="#ffffff"
+     stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 16.3h14.6a4.2 4.2 0 0 0 4.2-4.2c0-1-.6-1.9-1.6-2.2l-5.1-1.8-2.6-3-3.1 1.1v3.3H4.2A2.2 2.2 0 0 0 2 11.7z"/>
+    <path d="M2 16.3v1.9h19"/>
+    <path d="m8.6 9.5 2.5 1.7M11.4 7.2l2.3 2.6"/>
+  </g>
+</svg>

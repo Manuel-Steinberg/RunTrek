@@ -1,0 +1,1153 @@
+/*
+ * SchuhTracker – Laufschuh-Kilometerzähler
+ *
+ * Grundsätze:
+ * - Alle Daten bleiben im localStorage des Geräts. Kein Netzwerkverkehr.
+ * - Kein innerHTML mit Nutzerdaten: alles über textContent (XSS-sicher).
+ * - Jeder Wert aus dem Speicher wird beim Laden validiert, nie blind vertraut.
+ */
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------- Konstanten
+
+  var STORAGE_KEY = 'schuh_tracker_data';
+  var THEME_KEY = 'schuh_tracker_theme';
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+  var DEFAULT_ICON = '👟';
+  var BACKUP_VERSION = 1;
+  var MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
+  var LIMIT = {
+    name: 60,
+    brand: 40,
+    notes: 280,
+    id: 64,
+    maxKm: 5000,
+    initialKm: 5000,
+    distance: 999
+  };
+
+  var WEAR = {
+    ok: { key: 'ok', label: 'Gut' },
+    warn: { key: 'warn', label: 'Demnächst fällig' },
+    worn: { key: 'worn', label: 'Verschlissen' }
+  };
+
+  var TABS = ['shoes', 'log', 'stats'];
+  var TAB_HASH = { shoes: '#schuhe', log: '#lauf', stats: '#statistik' };
+
+  // ------------------------------------------------------------------ Formate
+
+  var numberFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
+  var dateFormat = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+
+  function formatKm(value) {
+    return numberFormat.format(value) + ' km';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '–';
+    var parsed = new Date(iso + 'T00:00:00');
+    return Number.isNaN(parsed.getTime()) ? iso : dateFormat.format(parsed);
+  }
+
+  /** Lokales Datum – toISOString() würde in UTC rechnen und abends danebenliegen. */
+  function todayIso() {
+    var now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  function round1(value) {
+    return Math.round(value * 10) / 10;
+  }
+
+  // ------------------------------------------------------------------ Helfer
+
+  function byId(id) {
+    return document.getElementById(id);
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function icon(symbol, extraClass) {
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'icon' + (extraClass ? ' ' + extraClass : ''));
+    svg.setAttribute('aria-hidden', 'true');
+    var use = document.createElementNS(SVG_NS, 'use');
+    use.setAttribute('href', '#' + symbol);
+    svg.appendChild(use);
+    return svg;
+  }
+
+  function uid(prefix) {
+    var random = (self.crypto && typeof self.crypto.randomUUID === 'function')
+      ? self.crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    return prefix + '-' + random;
+  }
+
+  function firstGrapheme(value) {
+    if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+      var segments = new Intl.Segmenter('de', { granularity: 'grapheme' }).segment(value);
+      var iterator = segments[Symbol.iterator]();
+      var first = iterator.next();
+      return first.done ? '' : first.value.segment;
+    }
+    return Array.from(value).slice(0, 2).join('');
+  }
+
+  // ------------------------------------------------------- Speicher (gekapselt)
+
+  var storage = {
+    read: function (key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (error) {
+        return null;
+      }
+    },
+    write: function (key, value) {
+      try {
+        localStorage.setItem(key, value);
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+  };
+
+  // ------------------------------------------------------------- Validierung
+
+  function toText(value, max) {
+    return typeof value === 'string' ? value.trim().slice(0, max) : '';
+  }
+
+  function toNumber(value, min, max, fallback) {
+    var parsed = typeof value === 'number' ? value : parseFloat(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(Math.max(parsed, min), max);
+  }
+
+  function toIsoDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
+    return Number.isNaN(Date.parse(value)) ? '' : value;
+  }
+
+  function toIcon(value) {
+    var text = toText(value, 12);
+    return text ? (firstGrapheme(text) || DEFAULT_ICON) : DEFAULT_ICON;
+  }
+
+  /**
+   * Baut aus beliebigem Input einen garantiert gültigen Zustand.
+   * Alles, was hier durchkommt, darf der Rest der App ohne Prüfung nutzen.
+   */
+  function normalize(raw) {
+    var source = (raw && typeof raw === 'object') ? raw : {};
+    var usedIds = new Set();
+
+    function freshId(candidate, prefix) {
+      var id = toText(candidate, LIMIT.id);
+      if (!id || usedIds.has(id)) id = uid(prefix);
+      while (usedIds.has(id)) id = uid(prefix);
+      usedIds.add(id);
+      return id;
+    }
+
+    var shoes = (Array.isArray(source.shoes) ? source.shoes : [])
+      .filter(function (entry) { return entry && typeof entry === 'object'; })
+      .map(function (entry) {
+        return {
+          id: freshId(entry.id, 'shoe'),
+          name: toText(entry.name, LIMIT.name) || 'Unbenannter Schuh',
+          brand: toText(entry.brand, LIMIT.brand),
+          maxKm: toNumber(entry.maxKm, 1, LIMIT.maxKm, 800),
+          initialKm: toNumber(entry.initialKm, 0, LIMIT.initialKm, 0),
+          purchaseDate: toIsoDate(entry.purchaseDate),
+          icon: toIcon(entry.icon),
+          archived: entry.archived === true
+        };
+      });
+
+    var runs = (Array.isArray(source.runs) ? source.runs : [])
+      .filter(function (entry) { return entry && typeof entry === 'object'; })
+      .map(function (entry) {
+        return {
+          id: freshId(entry.id, 'run'),
+          shoeId: toText(entry.shoeId, LIMIT.id),
+          distance: round1(toNumber(entry.distance, 0, LIMIT.distance, 0)),
+          date: toIsoDate(entry.date) || todayIso(),
+          notes: toText(entry.notes, LIMIT.notes)
+        };
+      })
+      .filter(function (run) { return run.distance > 0; });
+
+    return { shoes: shoes, runs: runs };
+  }
+
+  // -------------------------------------------------------------- Zustand
+
+  var state = { shoes: [], runs: [] };
+  var ui = { tab: 'shoes', filter: 'active', detailId: null };
+  var drag = null;
+  var installPrompt = null;
+
+  function load() {
+    var raw = storage.read(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      state = normalize(JSON.parse(raw));
+    } catch (error) {
+      // Beschädigte Daten dürfen die App nicht blockieren.
+      state = { shoes: [], runs: [] };
+      showToast('Gespeicherte Daten waren beschädigt und konnten nicht geladen werden.');
+    }
+  }
+
+  function save() {
+    if (!storage.write(STORAGE_KEY, JSON.stringify(state))) {
+      showToast('Speichern fehlgeschlagen – Speicher voll oder blockiert.');
+    }
+  }
+
+  // ------------------------------------------------------------- Berechnungen
+
+  /** Kilometerstand je Schuh in einem Durchlauf – O(n) statt O(n²). */
+  function kilometresByShoe() {
+    var totals = new Map();
+    state.shoes.forEach(function (shoe) { totals.set(shoe.id, shoe.initialKm); });
+    state.runs.forEach(function (run) {
+      if (totals.has(run.shoeId)) {
+        totals.set(run.shoeId, totals.get(run.shoeId) + run.distance);
+      }
+    });
+    totals.forEach(function (value, key) { totals.set(key, round1(value)); });
+    return totals;
+  }
+
+  function wearOf(currentKm, maxKm) {
+    var percent = maxKm > 0 ? Math.min(Math.round((currentKm / maxKm) * 100), 100) : 0;
+    var level = percent >= 100 ? WEAR.worn : (percent >= 75 ? WEAR.warn : WEAR.ok);
+    return { percent: percent, key: level.key, label: level.label };
+  }
+
+  function shoeById(id) {
+    return state.shoes.find(function (shoe) { return shoe.id === id; }) || null;
+  }
+
+  function visibleShoes() {
+    var wantArchived = ui.filter === 'archived';
+    return state.shoes.filter(function (shoe) { return shoe.archived === wantArchived; });
+  }
+
+  /** Läufe nach Datum absteigend; bei gleichem Datum bleibt die Eingabereihenfolge. */
+  function runsSorted(shoeId) {
+    return state.runs
+      .filter(function (run) { return !shoeId || run.shoeId === shoeId; })
+      .slice()
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+  }
+
+  // ----------------------------------------------------------------- Meter
+
+  function buildMeter(labelLeft, labelRight, wear, modifier) {
+    var meter = el('div', 'meter meter--' + wear.key + (modifier ? ' ' + modifier : ''));
+
+    var labels = el('div', 'meter__labels');
+    labels.appendChild(el('span', null, labelLeft));
+    labels.appendChild(el('b', null, labelRight));
+
+    var track = el('div', 'meter__track');
+    var bar = el('div', 'meter__bar');
+    bar.style.setProperty('--value', wear.percent + '%');
+    track.appendChild(bar);
+
+    meter.appendChild(labels);
+    meter.appendChild(track);
+    return meter;
+  }
+
+  // --------------------------------------------------------- Rendering: Schuhe
+
+  var shoesList = byId('shoes-list');
+  var shoesEmpty = byId('shoes-empty');
+
+  function renderShoes() {
+    var shoes = visibleShoes();
+    var totals = kilometresByShoe();
+
+    shoesList.replaceChildren();
+
+    var archived = ui.filter === 'archived';
+    byId('empty-title').textContent = archived ? 'Archiv ist leer' : 'Keine Schuhe vorhanden';
+    byId('empty-text').textContent = archived
+      ? 'Ausgemusterte Schuhe landen hier, sobald du sie archivierst.'
+      : 'Füge deinen ersten Laufschuh hinzu, um Kilometer und Verschleiß zu tracken.';
+    shoesEmpty.hidden = shoes.length > 0;
+
+    shoes.forEach(function (shoe) {
+      shoesList.appendChild(buildShoeCard(shoe, totals.get(shoe.id) || 0));
+    });
+  }
+
+  function buildShoeCard(shoe, totalKm) {
+    var wear = wearOf(totalKm, shoe.maxKm);
+
+    var item = el('li', 'shoe');
+    item.dataset.id = shoe.id;
+
+    var head = el('div', 'shoe__head');
+
+    var handle = el('button', 'shoe__handle');
+    handle.type = 'button';
+    handle.dataset.handle = 'true';
+    handle.setAttribute('aria-label', 'Reihenfolge ändern: ' + shoe.name);
+    handle.title = 'Ziehen oder Pfeiltasten benutzen';
+    handle.appendChild(icon('i-drag', 'icon--solid'));
+
+    var open = el('button', 'shoe__open');
+    open.type = 'button';
+    open.dataset.open = shoe.id;
+    open.setAttribute('aria-label', 'Details zu ' + shoe.name + ' öffnen');
+    open.appendChild(el('span', 'shoe__emoji', shoe.icon));
+
+    // Spans statt Überschrift/Absatz: ein <button> darf nur Phrasing Content
+    // enthalten. Die Struktur trägt ohnehin das aria-label.
+    var text = el('div', 'shoe__text');
+    text.appendChild(el('span', 'shoe__name', shoe.name));
+    if (shoe.brand) text.appendChild(el('span', 'shoe__brand', shoe.brand));
+    open.appendChild(text);
+
+    head.appendChild(handle);
+    head.appendChild(open);
+    head.appendChild(el('span', 'badge badge--' + wear.key, wear.label));
+
+    item.appendChild(head);
+    item.appendChild(buildMeter(
+      formatKm(totalKm) + ' von ' + formatKm(shoe.maxKm),
+      wear.percent + ' %',
+      wear
+    ));
+    return item;
+  }
+
+  // ------------------------------------------------------- Rendering: Läufe
+
+  function buildRunRow(run, options) {
+    var item = el('li', 'run');
+    var main = el('div', 'run__main');
+
+    var line = el('div');
+    line.appendChild(el('span', 'run__distance', formatKm(run.distance)));
+
+    if (options.withShoe) {
+      var shoe = shoeById(run.shoeId);
+      var label = shoe ? shoe.icon + ' ' + shoe.name : 'Unbekannter Schuh';
+      line.appendChild(document.createTextNode(' '));
+      line.appendChild(el('span', 'run__shoe', '(' + label + ')'));
+    }
+    main.appendChild(line);
+
+    if (run.notes) main.appendChild(el('p', 'run__notes', run.notes));
+
+    item.appendChild(main);
+
+    if (options.withDelete) {
+      var remove = el('button', 'icon-btn icon-btn--danger');
+      remove.type = 'button';
+      remove.dataset.deleteRun = run.id;
+      remove.setAttribute('aria-label', 'Lauf vom ' + formatDate(run.date) + ' löschen');
+      remove.appendChild(icon('i-trash', 'icon--sm'));
+
+      var right = el('div', 'run__date');
+      right.appendChild(el('span', null, formatDate(run.date)));
+      item.appendChild(right);
+      item.appendChild(remove);
+    } else {
+      item.appendChild(el('span', 'run__date', formatDate(run.date)));
+    }
+
+    return item;
+  }
+
+  function renderRecentRuns() {
+    var list = byId('recent-runs-list');
+    list.replaceChildren();
+
+    var recent = runsSorted().slice(0, 5);
+    if (recent.length === 0) {
+      list.appendChild(el('li', 'hint', 'Noch keine Läufe eingetragen.'));
+      return;
+    }
+    recent.forEach(function (run) {
+      list.appendChild(buildRunRow(run, { withShoe: true }));
+    });
+  }
+
+  function populateShoeSelect() {
+    var select = byId('run-shoe-id');
+    var previous = select.value;
+    select.replaceChildren();
+
+    var active = state.shoes.filter(function (shoe) { return !shoe.archived; });
+    if (active.length === 0) {
+      var placeholder = el('option', null, 'Keine aktiven Schuhe verfügbar');
+      placeholder.value = '';
+      select.appendChild(placeholder);
+      select.disabled = true;
+      return;
+    }
+
+    select.disabled = false;
+    active.forEach(function (shoe) {
+      var option = el('option', null, shoe.icon + ' ' + shoe.name + (shoe.brand ? ' (' + shoe.brand + ')' : ''));
+      option.value = shoe.id;
+      select.appendChild(option);
+    });
+    if (previous && active.some(function (shoe) { return shoe.id === previous; })) {
+      select.value = previous;
+    }
+  }
+
+  // --------------------------------------------------- Rendering: Statistik
+
+  function renderStats() {
+    var runKm = state.runs.reduce(function (sum, run) { return sum + run.distance; }, 0);
+    var initialKm = state.shoes.reduce(function (sum, shoe) { return sum + shoe.initialKm; }, 0);
+    var runCount = state.runs.length;
+
+    byId('stat-total-km').textContent = formatKm(round1(runKm + initialKm));
+    byId('stat-active-shoes').textContent = String(
+      state.shoes.filter(function (shoe) { return !shoe.archived; }).length
+    );
+    byId('stat-total-runs').textContent = String(runCount);
+    byId('stat-avg-distance').textContent = formatKm(runCount > 0 ? round1(runKm / runCount) : 0);
+
+    var container = byId('wear-distribution');
+    container.replaceChildren();
+
+    if (state.shoes.length === 0) {
+      container.appendChild(el('p', 'hint', 'Noch keine Schuhe vorhanden.'));
+      return;
+    }
+
+    var totals = kilometresByShoe();
+    state.shoes.forEach(function (shoe) {
+      var totalKm = totals.get(shoe.id) || 0;
+      var wear = wearOf(totalKm, shoe.maxKm);
+      var row = buildMeter(
+        shoe.icon + ' ' + shoe.name,
+        formatKm(totalKm) + ' / ' + formatKm(shoe.maxKm),
+        wear,
+        'meter--thin'
+      );
+      container.appendChild(row);
+    });
+  }
+
+  // ------------------------------------------------------------- Navigation
+
+  function switchTab(tab, updateHash) {
+    if (TABS.indexOf(tab) === -1) tab = 'shoes';
+    ui.tab = tab;
+
+    TABS.forEach(function (name) {
+      var selected = name === tab;
+      var button = byId('tab-' + name);
+      button.setAttribute('aria-selected', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      byId('panel-' + name).hidden = !selected;
+    });
+
+    if (tab === 'shoes') renderShoes();
+    if (tab === 'log') { populateShoeSelect(); renderRecentRuns(); }
+    if (tab === 'stats') renderStats();
+
+    if (updateHash !== false && location.hash !== TAB_HASH[tab]) {
+      try {
+        history.replaceState(null, '', TAB_HASH[tab]);
+      } catch (error) {
+        // Manche Browser verbieten replaceState unter file:// – unkritisch.
+        location.hash = TAB_HASH[tab];
+      }
+    }
+  }
+
+  function tabFromHash() {
+    var found = TABS.find(function (name) { return TAB_HASH[name] === location.hash; });
+    return found || 'shoes';
+  }
+
+  // ----------------------------------------------------------- Dialoge/Toast
+
+  function openDialog(dialog) {
+    if (!dialog.open) dialog.showModal();
+  }
+
+  function closeDialog(dialog) {
+    if (dialog.open) dialog.close();
+  }
+
+  var confirmDialog = byId('dialog-confirm');
+  var confirmResolve = null;
+
+  function askConfirm(title, text, confirmLabel) {
+    byId('confirm-title').textContent = title;
+    byId('confirm-text').textContent = text;
+    byId('confirm-ok').textContent = confirmLabel || 'Löschen';
+    openDialog(confirmDialog);
+    return new Promise(function (resolve) { confirmResolve = resolve; });
+  }
+
+  function settleConfirm(result) {
+    // Erst den Resolver einsammeln: close() feuert ein close-Event, das sonst
+    // ein zweites Mal (mit false) auflösen würde.
+    var resolve = confirmResolve;
+    confirmResolve = null;
+    closeDialog(confirmDialog);
+    if (resolve) resolve(result);
+  }
+
+  var toastElement = byId('toast');
+  var toastTimer = null;
+  var toastAction = null;
+
+  function showToast(message, action) {
+    toastElement.textContent = message;
+    toastElement.classList.add('is-visible');
+    toastElement.classList.toggle('toast--action', Boolean(action));
+    toastAction = action || null;
+    // Nur mit Aktion fokussierbar, damit der Toast sonst nicht im Tab-Fluss liegt.
+    toastElement.tabIndex = action ? 0 : -1;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, action ? 8000 : 2800);
+  }
+
+  function hideToast() {
+    toastElement.classList.remove('is-visible', 'toast--action');
+    toastElement.tabIndex = -1;
+    toastAction = null;
+  }
+
+  function runToastAction() {
+    if (!toastAction) return;
+    var action = toastAction;
+    hideToast();
+    action();
+  }
+
+  // -------------------------------------------------------------- Aktionen
+
+  function addShoe(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    if (!form.reportValidity()) return;
+
+    var name = toText(byId('shoe-name').value, LIMIT.name);
+    var maxKm = toNumber(byId('shoe-max-km').value, 1, LIMIT.maxKm, NaN);
+    var initialKm = toNumber(byId('shoe-initial-km').value, 0, LIMIT.initialKm, NaN);
+
+    if (!name) { showToast('Bitte einen Modellnamen eingeben.'); return; }
+    if (!Number.isFinite(maxKm)) { showToast('Bitte eine gültige Maximal-Kilometerzahl eingeben.'); return; }
+    if (!Number.isFinite(initialKm)) { showToast('Bitte gültige Startkilometer eingeben.'); return; }
+
+    state.shoes.push({
+      id: uid('shoe'),
+      name: name,
+      brand: toText(byId('shoe-brand').value, LIMIT.brand),
+      maxKm: Math.round(maxKm),
+      initialKm: round1(initialKm),
+      purchaseDate: toIsoDate(byId('shoe-purchase-date').value) || todayIso(),
+      icon: toIcon(byId('shoe-icon').value),
+      archived: false
+    });
+    save();
+
+    form.reset();
+    byId('shoe-purchase-date').value = todayIso();
+    byId('shoe-icon').value = DEFAULT_ICON;
+
+    closeDialog(byId('dialog-add-shoe'));
+    ui.filter = 'active';
+    syncFilterChips();
+    renderShoes();
+    showToast('Schuh hinzugefügt.');
+  }
+
+  function logRun(event) {
+    event.preventDefault();
+    var form = event.currentTarget;
+    if (!form.reportValidity()) return;
+
+    var shoeId = byId('run-shoe-id').value;
+    var distance = toNumber(byId('run-distance').value, 0, LIMIT.distance, NaN);
+    var date = toIsoDate(byId('run-date').value);
+
+    if (!shoeId || !shoeById(shoeId)) {
+      showToast('Bitte zuerst einen aktiven Laufschuh anlegen.');
+      return;
+    }
+    if (!Number.isFinite(distance) || distance <= 0) {
+      showToast('Bitte eine Distanz zwischen 0,1 und ' + LIMIT.distance + ' km eingeben.');
+      return;
+    }
+    if (!date) { showToast('Bitte ein gültiges Datum wählen.'); return; }
+
+    state.runs.unshift({
+      id: uid('run'),
+      shoeId: shoeId,
+      distance: round1(distance),
+      date: date,
+      notes: toText(byId('run-notes').value, LIMIT.notes)
+    });
+    save();
+
+    byId('run-distance').value = '';
+    byId('run-notes').value = '';
+    byId('run-date').value = todayIso();
+
+    renderRecentRuns();
+    showToast('Lauf eingetragen: ' + formatKm(round1(distance)) + '.');
+  }
+
+  function deleteRun(runId) {
+    var index = state.runs.findIndex(function (run) { return run.id === runId; });
+    if (index === -1) return;
+
+    var removed = state.runs[index];
+    state.runs.splice(index, 1);
+    save();
+
+    if (ui.detailId) openShoeDetail(ui.detailId);
+    renderRecentRuns();
+
+    showToast('Lauf gelöscht – rückgängig machen?', function () {
+      state.runs.splice(index, 0, removed);
+      save();
+      if (ui.detailId) openShoeDetail(ui.detailId);
+      renderRecentRuns();
+      showToast('Lauf wiederhergestellt.');
+    });
+  }
+
+  function toggleArchive() {
+    var shoe = shoeById(ui.detailId);
+    if (!shoe) return;
+
+    shoe.archived = !shoe.archived;
+    save();
+    closeDialog(byId('dialog-shoe-detail'));
+    renderShoes();
+    showToast(shoe.archived ? 'Schuh archiviert.' : 'Schuh reaktiviert.');
+  }
+
+  function deleteShoe() {
+    var shoe = shoeById(ui.detailId);
+    if (!shoe) return;
+
+    var affected = state.runs.filter(function (run) { return run.shoeId === shoe.id; }).length;
+    var text = affected > 0
+      ? '„' + shoe.name + '“ und ' + affected + ' zugehörige Läufe werden dauerhaft entfernt.'
+      : '„' + shoe.name + '“ wird dauerhaft entfernt.';
+
+    askConfirm('Schuh löschen?', text).then(function (confirmed) {
+      if (!confirmed) return;
+      state.shoes = state.shoes.filter(function (entry) { return entry.id !== shoe.id; });
+      state.runs = state.runs.filter(function (run) { return run.shoeId !== shoe.id; });
+      save();
+      closeDialog(byId('dialog-shoe-detail'));
+      renderShoes();
+      showToast('Schuh gelöscht.');
+    });
+  }
+
+  // ------------------------------------------------------------ Detaildialog
+
+  function openShoeDetail(shoeId) {
+    var shoe = shoeById(shoeId);
+    if (!shoe) return;
+
+    ui.detailId = shoe.id;
+
+    var totalKm = kilometresByShoe().get(shoe.id) || 0;
+    var wear = wearOf(totalKm, shoe.maxKm);
+
+    byId('detail-icon').textContent = shoe.icon;
+    byId('detail-name').textContent = shoe.name;
+    byId('detail-brand').textContent = shoe.brand || '–';
+    byId('detail-km-text').textContent = formatKm(totalKm) + ' / ' + formatKm(shoe.maxKm);
+    byId('detail-meter').className = 'meter meter--' + wear.key;
+    byId('detail-progress-bar').style.setProperty('--value', wear.percent + '%');
+    byId('detail-purchase-date').textContent = formatDate(shoe.purchaseDate);
+    byId('detail-remaining-km').textContent = formatKm(Math.max(round1(shoe.maxKm - totalKm), 0));
+
+    byId('detail-archive-text').textContent = shoe.archived ? 'Reaktivieren' : 'Archivieren';
+    byId('detail-archive-icon').setAttribute('href', shoe.archived ? '#i-unarchive' : '#i-archive');
+
+    var list = byId('detail-runs-list');
+    list.replaceChildren();
+
+    var runs = runsSorted(shoe.id);
+    if (shoe.initialKm > 0) {
+      var initial = el('li', 'run');
+      initial.appendChild(el('div', 'run__main', 'Manueller Startkilometerstand'));
+      initial.appendChild(el('span', 'run__distance', formatKm(shoe.initialKm)));
+      list.appendChild(initial);
+    }
+    if (runs.length === 0 && shoe.initialKm === 0) {
+      list.appendChild(el('li', 'hint', 'Noch keine Läufe erfasst.'));
+    }
+    runs.forEach(function (run) {
+      list.appendChild(buildRunRow(run, { withDelete: true }));
+    });
+
+    openDialog(byId('dialog-shoe-detail'));
+  }
+
+  // -------------------------------------------------------------- Sortierung
+
+  /** Übernimmt die Reihenfolge der sichtbaren Schuhe in die Gesamtliste. */
+  function applyOrder(visibleIds) {
+    var slots = [];
+    state.shoes.forEach(function (shoe, index) {
+      if (visibleIds.indexOf(shoe.id) !== -1) slots.push(index);
+    });
+    if (slots.length !== visibleIds.length) return false;
+
+    var lookup = new Map(state.shoes.map(function (shoe) { return [shoe.id, shoe]; }));
+    var changed = false;
+
+    slots.forEach(function (slot, position) {
+      var shoe = lookup.get(visibleIds[position]);
+      if (state.shoes[slot] !== shoe) changed = true;
+      state.shoes[slot] = shoe;
+    });
+
+    if (changed) save();
+    return changed;
+  }
+
+  function moveShoeByKeyboard(shoeId, offset) {
+    var ids = visibleShoes().map(function (shoe) { return shoe.id; });
+    var from = ids.indexOf(shoeId);
+    var to = from + offset;
+    if (from === -1 || to < 0 || to >= ids.length) return;
+
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    if (!applyOrder(ids)) return;
+
+    renderShoes();
+    var handle = shoesList.querySelector('[data-id="' + CSS.escape(shoeId) + '"] .shoe__handle');
+    if (handle) handle.focus();
+    showToast('Reihenfolge gespeichert.');
+  }
+
+  /* Pointer Events statt HTML5-Drag&Drop: funktioniert auch per Touch. */
+  function startDrag(event, handle) {
+    if (event.button != null && event.button !== 0) return;
+
+    var item = handle.closest('.shoe');
+    if (!item) return;
+
+    drag = { item: item, pointerId: event.pointerId, moved: false };
+    item.classList.add('is-dragging');
+    handle.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function moveDrag(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    event.preventDefault();
+    drag.moved = true;
+
+    var others = Array.prototype.filter.call(shoesList.children, function (node) {
+      return node !== drag.item;
+    });
+    var target = others.find(function (node) {
+      var box = node.getBoundingClientRect();
+      return event.clientY < box.top + box.height / 2;
+    });
+
+    if (target) {
+      shoesList.insertBefore(drag.item, target);
+    } else {
+      shoesList.appendChild(drag.item);
+    }
+  }
+
+  function endDrag(event) {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+
+    drag.item.classList.remove('is-dragging');
+    var moved = drag.moved;
+    drag = null;
+    if (!moved) return;
+
+    var ids = Array.prototype.map.call(shoesList.children, function (node) {
+      return node.dataset.id;
+    });
+    if (applyOrder(ids)) showToast('Reihenfolge gespeichert.');
+  }
+
+  // ----------------------------------------------------------------- Export
+
+  function download(filename, content, mime) {
+    var blob = new Blob([content], { type: mime });
+    var url = URL.createObjectURL(blob);
+    var link = el('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Erst nach dem Klick freigeben, sonst bricht der Download in Safari ab.
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function exportCsv() {
+    var headers = [
+      'Schuh-ID', 'Schuh', 'Marke', 'Archiviert', 'Kaufdatum', 'Max. Kilometer',
+      'Startkilometer', 'Aktuelle Kilometer', 'Verbleibende Kilometer',
+      'Lauf-ID', 'Laufdatum', 'Distanz (km)', 'Notizen'
+    ];
+    var totals = kilometresByShoe();
+    var rows = [];
+
+    state.shoes.forEach(function (shoe) {
+      var totalKm = totals.get(shoe.id) || 0;
+      var base = [
+        shoe.id, shoe.name, shoe.brand, shoe.archived ? 'Ja' : 'Nein', shoe.purchaseDate,
+        shoe.maxKm, shoe.initialKm, totalKm, Math.max(round1(shoe.maxKm - totalKm), 0)
+      ];
+      var shoeRuns = runsSorted(shoe.id);
+
+      if (shoeRuns.length === 0) {
+        rows.push(base.concat(['', '', '', '']));
+      } else {
+        shoeRuns.forEach(function (run) {
+          rows.push(base.concat([run.id, run.date, run.distance, run.notes]));
+        });
+      }
+    });
+
+    // Dezimalkomma + Semikolon + BOM: so öffnet deutsches Excel die Datei korrekt.
+    var cell = function (value) {
+      var text = typeof value === 'number' ? String(value).replace('.', ',') : String(value == null ? '' : value);
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
+    var csv = [headers].concat(rows)
+      .map(function (row) { return row.map(cell).join(';'); })
+      .join('\r\n');
+
+    download('schuhtracker-export-' + todayIso() + '.csv', '﻿' + csv, 'text/csv;charset=utf-8;');
+    showToast('CSV exportiert.');
+  }
+
+  function exportJson() {
+    var backup = {
+      app: 'SchuhTracker',
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      shoes: state.shoes,
+      runs: state.runs
+    };
+    download('schuhtracker-backup-' + todayIso() + '.json', JSON.stringify(backup, null, 2), 'application/json');
+    showToast('Backup gespeichert.');
+  }
+
+  function importJson(file) {
+    if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      showToast('Datei ist zu groß für ein Backup.');
+      return;
+    }
+
+    file.text()
+      .then(function (text) { return normalize(JSON.parse(text)); })
+      .then(function (imported) {
+        if (imported.shoes.length === 0 && imported.runs.length === 0) {
+          showToast('Das Backup enthält keine Daten.');
+          return;
+        }
+        return askConfirm(
+          'Backup einspielen?',
+          'Die aktuellen Daten werden durch ' + imported.shoes.length + ' Schuhe und ' +
+          imported.runs.length + ' Läufe ersetzt.',
+          'Ersetzen'
+        ).then(function (confirmed) {
+          if (!confirmed) return;
+          state = imported;
+          save();
+          ui.detailId = null;
+          switchTab(ui.tab);
+          showToast('Backup wiederhergestellt.');
+        });
+      })
+      .catch(function () {
+        showToast('Datei konnte nicht gelesen werden – kein gültiges Backup.');
+      });
+  }
+
+  // ------------------------------------------------------------------ Theme
+
+  function currentTheme() {
+    if (document.documentElement.dataset.theme) return document.documentElement.dataset.theme;
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    storage.write(THEME_KEY, theme);
+    syncThemeButton(theme);
+
+    var color = theme === 'dark' ? '#141218' : '#fef7ff';
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+      meta.removeAttribute('media');
+      meta.content = color;
+    });
+  }
+
+  function syncThemeButton(theme) {
+    var dark = theme === 'dark';
+    byId('theme-icon').setAttribute('href', dark ? '#i-sun' : '#i-moon');
+    var button = byId('theme-btn');
+    button.setAttribute('aria-pressed', String(dark));
+    button.setAttribute('aria-label', dark ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren');
+  }
+
+  // -------------------------------------------------------------------- PWA
+
+  function isStandalone() {
+    return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  }
+
+  function isIos() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  /** Anleitung für Browser, die kein beforeinstallprompt kennen (Safari, Firefox). */
+  function installHint() {
+    var ua = navigator.userAgent;
+
+    if (location.protocol === 'file:') {
+      return 'Diese Seite wurde direkt aus dem Dateisystem geöffnet. Installieren und ' +
+        'Offline-Betrieb brauchen eine echte Adresse – die App über https:// oder ' +
+        'http://localhost aufrufen.';
+    }
+    if (isIos()) {
+      return 'In Safari unten auf „Teilen“ tippen, dann „Zum Home-Bildschirm“ wählen. ' +
+        'Danach startet SchuhTracker wie eine normale App – auch ohne Internet.';
+    }
+    if (/Android/.test(ua)) {
+      return 'Im Chrome-Menü (drei Punkte) „App installieren“ bzw. ' +
+        '„Zum Startbildschirm hinzufügen“ wählen.';
+    }
+    if (/Firefox\//.test(ua)) {
+      return 'Firefox kann Web-Apps am Desktop nicht installieren. Die App läuft hier ' +
+        'trotzdem vollständig – zum Installieren Chrome, Edge oder Safari verwenden.';
+    }
+    if (/Safari\//.test(ua) && !/Chrome|Chromium|Edg\//.test(ua)) {
+      return 'Im Menü „Ablage“ auf „Zum Dock hinzufügen“ klicken (macOS Sonoma oder neuer).';
+    }
+    return 'In Chrome oder Edge erscheint rechts in der Adressleiste ein Installations-Symbol; ' +
+      'alternativ im Menü „App installieren“ wählen. Falls es fehlt: einmal neu laden, damit ' +
+      'der Service Worker bereitsteht.';
+  }
+
+  function setupInstall() {
+    var button = byId('install-btn');
+    if (isStandalone()) return;
+
+    // Immer sichtbar: ohne beforeinstallprompt (Safari, Firefox) gäbe es sonst
+    // gar keinen Hinweis darauf, dass die App installierbar ist.
+    button.hidden = false;
+    installPrompt = window.__installPrompt || null;
+
+    addEventListener('beforeinstallprompt', function (event) {
+      event.preventDefault();
+      installPrompt = event;
+    });
+
+    addEventListener('appinstalled', function () {
+      installPrompt = null;
+      button.hidden = true;
+      showToast('SchuhTracker ist installiert.');
+    });
+
+    button.addEventListener('click', function () {
+      if (installPrompt) {
+        installPrompt.prompt();
+        installPrompt.userChoice.then(function (choice) {
+          if (choice.outcome === 'accepted') button.hidden = true;
+          installPrompt = null;
+        });
+        return;
+      }
+      byId('install-text').textContent = installHint();
+      openDialog(byId('dialog-install'));
+    });
+  }
+
+  function setupServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('./sw.js').then(function (registration) {
+      registration.addEventListener('updatefound', function () {
+        var worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', function () {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            showToast('Neue Version verfügbar – tippen zum Neuladen.', function () {
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            });
+          }
+        });
+      });
+    }).catch(function () {
+      /* Ohne Service Worker läuft die App weiter, nur ohne Offline-Cache. */
+    });
+
+    // Beim allerersten Besuch übernimmt der Worker via clients.claim() die
+    // Kontrolle – das ist kein Update und darf keinen Reload auslösen.
+    var hadController = Boolean(navigator.serviceWorker.controller);
+    var reloading = false;
+
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadController || reloading) return;
+      reloading = true;
+      location.reload();
+    });
+  }
+
+  // --------------------------------------------------------------- Bindings
+
+  function syncFilterChips() {
+    byId('filter-active').setAttribute('aria-pressed', String(ui.filter === 'active'));
+    byId('filter-archived').setAttribute('aria-pressed', String(ui.filter === 'archived'));
+  }
+
+  function bindEvents() {
+    // Tabs
+    document.querySelectorAll('[data-tab]').forEach(function (button) {
+      button.addEventListener('click', function () { switchTab(button.dataset.tab); });
+    });
+    addEventListener('hashchange', function () { switchTab(tabFromHash(), false); });
+
+    // Filter
+    document.querySelectorAll('[data-filter]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        ui.filter = chip.dataset.filter;
+        syncFilterChips();
+        renderShoes();
+      });
+    });
+
+    // Schuhliste: ein Listener statt einem pro Karte.
+    shoesList.addEventListener('click', function (event) {
+      var open = event.target.closest('[data-open]');
+      if (open) openShoeDetail(open.dataset.open);
+    });
+
+    shoesList.addEventListener('pointerdown', function (event) {
+      var handle = event.target.closest('[data-handle]');
+      if (handle) startDrag(event, handle);
+    });
+    shoesList.addEventListener('pointermove', moveDrag);
+    shoesList.addEventListener('pointerup', endDrag);
+    shoesList.addEventListener('pointercancel', endDrag);
+
+    shoesList.addEventListener('keydown', function (event) {
+      var handle = event.target.closest('[data-handle]');
+      if (!handle) return;
+      if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+      event.preventDefault();
+      moveShoeByKeyboard(handle.closest('.shoe').dataset.id, event.key === 'ArrowUp' ? -1 : 1);
+    });
+
+    // Formulare
+    byId('shoe-form').addEventListener('submit', addShoe);
+    byId('run-form').addEventListener('submit', logRun);
+
+    // Detaildialog
+    byId('detail-runs-list').addEventListener('click', function (event) {
+      var button = event.target.closest('[data-delete-run]');
+      if (button) deleteRun(button.dataset.deleteRun);
+    });
+    byId('detail-archive-btn').addEventListener('click', toggleArchive);
+    byId('detail-delete-btn').addEventListener('click', deleteShoe);
+    byId('dialog-shoe-detail').addEventListener('close', function () { ui.detailId = null; });
+
+    // FAB
+    byId('add-shoe-btn').addEventListener('click', function () {
+      byId('shoe-purchase-date').value = todayIso();
+      openDialog(byId('dialog-add-shoe'));
+      byId('shoe-name').focus();
+    });
+
+    // Export / Import
+    byId('export-csv-btn').addEventListener('click', exportCsv);
+    byId('export-json-btn').addEventListener('click', exportJson);
+    byId('import-json-btn').addEventListener('click', function () { byId('import-file').click(); });
+    byId('import-file').addEventListener('change', function (event) {
+      importJson(event.target.files[0]);
+      event.target.value = '';
+    });
+
+    // Theme
+    byId('theme-btn').addEventListener('click', function () {
+      applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+    });
+
+    // Bestätigungsdialog
+    byId('confirm-ok').addEventListener('click', function () { settleConfirm(true); });
+    byId('confirm-cancel').addEventListener('click', function () { settleConfirm(false); });
+    confirmDialog.addEventListener('close', function () { settleConfirm(false); });
+
+    // Dialoge: Schließen-Buttons und Klick auf den Hintergrund.
+    document.querySelectorAll('dialog').forEach(function (dialog) {
+      dialog.addEventListener('click', function (event) {
+        if (event.target === dialog) closeDialog(dialog);
+      });
+    });
+    document.querySelectorAll('[data-close-dialog]').forEach(function (button) {
+      button.addEventListener('click', function () { closeDialog(button.closest('dialog')); });
+    });
+
+    // Toast mit Undo-Aktion (Maus wie Tastatur)
+    toastElement.addEventListener('click', runToastAction);
+    toastElement.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      runToastAction();
+    });
+  }
+
+  // ------------------------------------------------------------------- Start
+
+  function init() {
+    load();
+    syncThemeButton(currentTheme());
+    syncFilterChips();
+
+    byId('run-date').value = todayIso();
+    byId('shoe-purchase-date').value = todayIso();
+
+    bindEvents();
+    switchTab(tabFromHash(), false);
+    setupInstall();
+    setupServiceWorker();
+  }
+
+  init();
+})();

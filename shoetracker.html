@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<!-- Strikte CSP: keine externen Quellen, kein inline-Script, kein eval.
+     frame-ancestors/X-Frame-Options gehören in HTTP-Header (siehe _headers). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+
+<title>SchuhTracker – Laufschuh-Kilometerzähler &amp; Verschleiß-Tracker</title>
+<meta name="description" content="SchuhTracker zählt die Kilometer deiner Laufschuhe, warnt vor Verschleiß und funktioniert offline. Installierbare PWA, alle Daten bleiben auf deinem Gerät – ohne Konto, ohne Tracking.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="author" content="RunTrek">
+<link rel="canonical" href="./shoetracker.html">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="de_DE">
+<meta property="og:site_name" content="SchuhTracker">
+<meta property="og:title" content="SchuhTracker – Laufschuh-Kilometerzähler">
+<meta property="og:description" content="Kilometer deiner Laufschuhe tracken, Verschleiß im Blick behalten – offline, ohne Konto, ohne Tracking.">
+<meta property="og:image" content="./assets/icons/icon-512.png">
+<meta name="twitter:card" content="summary">
+
+<meta name="theme-color" content="#fef7ff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SchuhTracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="./assets/css/app.css">
+<!-- Blockierend und winzig: setzt das Theme vor dem ersten Frame und fängt
+     beforeinstallprompt ab, bevor ein defer-Script laufen könnte. -->
+<script src="./assets/js/boot.js"></script>
+<script src="./assets/js/app.js" defer></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "SchuhTracker",
+  "alternateName": "Laufschuh-Kilometerzähler",
+  "description": "Progressive Web App zum Tracken der Laufleistung von Laufschuhen. Funktioniert offline, speichert alle Daten ausschließlich lokal auf dem Gerät.",
+  "applicationCategory": "HealthApplication",
+  "applicationSubCategory": "Running",
+  "operatingSystem": "Android, iOS, Windows, macOS, Linux",
+  "browserRequirements": "Benötigt JavaScript",
+  "inLanguage": "de",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "featureList": [
+    "Kilometerstand pro Laufschuh",
+    "Verschleißwarnung ab 75 Prozent",
+    "Läufe mit Datum und Notizen erfassen",
+    "Statistik und Verschleiß-Übersicht",
+    "CSV-Export und JSON-Backup",
+    "Offline nutzbar, installierbar als App",
+    "Keine Konten, keine Cloud, keine Tracker"
+  ]
+}
+</script>
+</head>
+<body>
+
+<!-- Icon-Sprite: ersetzt die Material-Symbols-Webfont (kein Google-Request). -->
+<svg class="visually-hidden" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-shoe" viewBox="0 0 24 24">
+    <path d="M2 16.3h14.6a4.2 4.2 0 0 0 4.2-4.2c0-1-.6-1.9-1.6-2.2l-5.1-1.8-2.6-3-3.1 1.1v3.3H4.2A2.2 2.2 0 0 0 2 11.7z"/>
+    <path d="M2 16.3v1.9h19"/>
+    <path d="m8.6 9.5 2.5 1.7M11.4 7.2l2.3 2.6"/>
+  </symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24">
+    <path d="M20.5 14.2A8.6 8.6 0 0 1 9.8 3.5a8.6 8.6 0 1 0 10.7 10.7z"/>
+  </symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-plus-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/><path d="M12 8.5v7M8.5 12h7"/>
+  </symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24">
+    <path d="M3 21h18"/><path d="M6.5 21v-6.5M12 21V5.5M17.5 21v-10"/>
+  </symbol>
+  <symbol id="i-download" viewBox="0 0 24 24">
+    <path d="M12 3.5v11M7.5 10.5 12 15l4.5-4.5"/><path d="M4 18v1.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V18"/>
+  </symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24">
+    <path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M4 18v1.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V18"/>
+  </symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24">
+    <rect x="3" y="4.5" width="18" height="4" rx="1"/><path d="M5 8.5v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-10"/><path d="M10 13h4"/>
+  </symbol>
+  <symbol id="i-unarchive" viewBox="0 0 24 24">
+    <rect x="3" y="4.5" width="18" height="4" rx="1"/><path d="M5 8.5v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-10"/><path d="M12 17v-5M9.6 14.4 12 12l2.4 2.4"/>
+  </symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24">
+    <path d="M4 6.5h16M9.5 6.5v-2h5v2"/><path d="m6.5 6.5 1 13h9l1-13"/><path d="M10.5 10v6M13.5 10v6"/>
+  </symbol>
+  <symbol id="i-drag" viewBox="0 0 24 24" class="icon--solid">
+    <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+    <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+    <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+  </symbol>
+  <symbol id="i-install" viewBox="0 0 24 24">
+    <rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M12 7v7M9.5 11.5 12 14l2.5-2.5"/>
+  </symbol>
+</svg>
+
+<header class="app-bar">
+  <div class="app-bar__brand">
+    <svg class="icon icon--lg" aria-hidden="true"><use href="#i-shoe"/></svg>
+    <div>
+      <h1 class="app-bar__title">SchuhTracker</h1>
+      <p class="app-bar__subtitle">Laufschuh-Manager</p>
+    </div>
+  </div>
+  <div class="app-bar__actions">
+    <button type="button" id="install-btn" class="icon-btn" hidden aria-label="App installieren" title="App installieren">
+      <svg class="icon" aria-hidden="true"><use href="#i-install"/></svg>
+    </button>
+    <button type="button" id="theme-btn" class="icon-btn" aria-label="Dunkles Design umschalten" aria-pressed="false">
+      <svg class="icon" aria-hidden="true"><use href="#i-moon" id="theme-icon"/></svg>
+    </button>
+  </div>
+</header>
+
+<noscript>
+  <p class="noscript">SchuhTracker benötigt JavaScript. Die App läuft vollständig in deinem Browser – es werden keine Daten an einen Server gesendet.</p>
+</noscript>
+
+<main class="main">
+
+  <!-- Schuhe -->
+  <section id="panel-shoes" class="panel" role="tabpanel" aria-labelledby="tab-shoes" tabindex="-1">
+    <div class="panel__head">
+      <h2 class="panel__title">Meine Schuhe</h2>
+      <div class="chips" role="group" aria-label="Schuhe filtern">
+        <button type="button" class="chip" id="filter-active" data-filter="active" aria-pressed="true">Aktiv</button>
+        <button type="button" class="chip" id="filter-archived" data-filter="archived" aria-pressed="false">Archiv</button>
+      </div>
+    </div>
+
+    <p class="hint" id="reorder-hint">
+      Zum Sortieren den Griff gedrückt halten und ziehen – oder mit der Tastatur fokussieren und Pfeil&nbsp;hoch/runter drücken.
+    </p>
+
+    <ul class="shoe-list" id="shoes-list" aria-describedby="reorder-hint"></ul>
+
+    <div class="empty" id="shoes-empty" hidden>
+      <div class="empty__icon">
+        <svg class="icon icon--lg" aria-hidden="true"><use href="#i-shoe"/></svg>
+      </div>
+      <h3 class="empty__title" id="empty-title">Keine Schuhe vorhanden</h3>
+      <p class="empty__text" id="empty-text">Füge deinen ersten Laufschuh hinzu, um Kilometer und Verschleiß zu tracken.</p>
+    </div>
+  </section>
+
+  <!-- Lauf eintragen -->
+  <section id="panel-log" class="panel" role="tabpanel" aria-labelledby="tab-log" tabindex="-1" hidden>
+    <h2 class="panel__title">Lauf eintragen</h2>
+
+    <form class="form card" id="run-form" novalidate>
+      <div class="field">
+        <label class="field__label" for="run-shoe-id">Laufschuh auswählen</label>
+        <select class="input" id="run-shoe-id" name="shoeId" required></select>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="run-distance">Distanz (km)</label>
+        <div class="input-affix">
+          <input class="input" type="number" id="run-distance" name="distance" inputmode="decimal"
+                 step="0.1" min="0.1" max="999" placeholder="z.B. 10,5" required>
+          <span class="input-affix__unit" aria-hidden="true">km</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="run-date">Datum</label>
+        <input class="input" type="date" id="run-date" name="date" required>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="run-notes">Notizen / Strecke (optional)</label>
+        <textarea class="input" id="run-notes" name="notes" rows="2" maxlength="280"
+                  placeholder="z.B. lockerer Dauerlauf im Park"></textarea>
+      </div>
+
+      <button type="submit" class="btn btn--filled btn--block">
+        <svg class="icon icon--sm" aria-hidden="true"><use href="#i-plus"/></svg>
+        Lauf speichern
+      </button>
+    </form>
+
+    <section>
+      <h3 class="section-title">Letzte Läufe</h3>
+      <ul class="run-list" id="recent-runs-list"></ul>
+    </section>
+  </section>
+
+  <!-- Statistik -->
+  <section id="panel-stats" class="panel" role="tabpanel" aria-labelledby="tab-stats" tabindex="-1" hidden>
+    <h2 class="panel__title">Statistik</h2>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <p class="stat__label" id="lbl-total-km">Gesamtkilometer</p>
+        <p class="stat__value stat__value--accent" id="stat-total-km" aria-labelledby="lbl-total-km">0 km</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label" id="lbl-active-shoes">Aktive Schuhe</p>
+        <p class="stat__value" id="stat-active-shoes" aria-labelledby="lbl-active-shoes">0</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label" id="lbl-total-runs">Gesamte Läufe</p>
+        <p class="stat__value" id="stat-total-runs" aria-labelledby="lbl-total-runs">0</p>
+      </div>
+      <div class="stat">
+        <p class="stat__label" id="lbl-avg">Ø Laufdistanz</p>
+        <p class="stat__value" id="stat-avg-distance" aria-labelledby="lbl-avg">0 km</p>
+      </div>
+    </div>
+
+    <section class="card">
+      <h3 class="section-title">Verschleiß-Übersicht</h3>
+      <div class="wear-list" id="wear-distribution"></div>
+    </section>
+
+    <section class="card">
+      <h3 class="section-title">Daten &amp; Backup</h3>
+      <p class="hint">
+        Alle Daten liegen ausschließlich in diesem Browser. Es gibt keinen Server und keine Cloud –
+        darum ist ein regelmäßiges Backup die einzige Absicherung gegen Datenverlust.
+      </p>
+      <div class="row">
+        <button type="button" class="btn btn--tonal" id="export-json-btn">
+          <svg class="icon icon--sm" aria-hidden="true"><use href="#i-download"/></svg>
+          Backup
+        </button>
+        <button type="button" class="btn btn--outline" id="import-json-btn">
+          <svg class="icon icon--sm" aria-hidden="true"><use href="#i-upload"/></svg>
+          Wiederherstellen
+        </button>
+      </div>
+      <button type="button" class="btn btn--outline btn--block btn--small" id="export-csv-btn">
+        <svg class="icon icon--sm" aria-hidden="true"><use href="#i-download"/></svg>
+        Als CSV exportieren (Excel)
+      </button>
+      <input type="file" id="import-file" accept="application/json,.json" class="visually-hidden" tabindex="-1" aria-hidden="true">
+    </section>
+  </section>
+
+</main>
+
+<button type="button" class="fab" id="add-shoe-btn" aria-label="Schuh hinzufügen" title="Schuh hinzufügen">
+  <svg class="icon icon--lg" aria-hidden="true"><use href="#i-plus"/></svg>
+</button>
+
+<nav class="bottom-nav" role="tablist" aria-label="Hauptbereiche">
+  <button type="button" class="nav-tab" role="tab" id="tab-shoes" data-tab="shoes"
+          aria-controls="panel-shoes" aria-selected="true">
+    <svg class="icon" aria-hidden="true"><use href="#i-shoe"/></svg>
+    Schuhe
+  </button>
+  <button type="button" class="nav-tab" role="tab" id="tab-log" data-tab="log"
+          aria-controls="panel-log" aria-selected="false" tabindex="-1">
+    <svg class="icon" aria-hidden="true"><use href="#i-plus-circle"/></svg>
+    Lauf eintragen
+  </button>
+  <button type="button" class="nav-tab" role="tab" id="tab-stats" data-tab="stats"
+          aria-controls="panel-stats" aria-selected="false" tabindex="-1">
+    <svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg>
+    Statistik
+  </button>
+</nav>
+
+<!-- Schuh anlegen -->
+<dialog class="dialog" id="dialog-add-shoe" aria-labelledby="add-shoe-title">
+  <div class="dialog__inner">
+    <div class="dialog__head">
+      <h2 class="dialog__title" id="add-shoe-title">Neuen Laufschuh hinzufügen</h2>
+      <button type="button" class="icon-btn" data-close-dialog aria-label="Dialog schließen">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+      </button>
+    </div>
+
+    <form class="form" id="shoe-form" novalidate>
+      <div class="field">
+        <label class="field__label" for="shoe-name">Modellname</label>
+        <input class="input" type="text" id="shoe-name" name="name" maxlength="60"
+               placeholder="z.B. Nike Pegasus 40" autocomplete="off" required>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="shoe-brand">Marke / Hersteller</label>
+        <input class="input" type="text" id="shoe-brand" name="brand" maxlength="40"
+               placeholder="z.B. Nike, Adidas, Brooks" autocomplete="off" required>
+      </div>
+
+      <div class="field__row">
+        <div class="field">
+          <label class="field__label" for="shoe-max-km">Max. Kilometer</label>
+          <input class="input" type="number" id="shoe-max-km" name="maxKm" inputmode="numeric"
+                 value="800" min="50" max="5000" step="10" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="shoe-initial-km">Bereits gelaufen</label>
+          <input class="input" type="number" id="shoe-initial-km" name="initialKm" inputmode="decimal"
+                 value="0" min="0" max="5000" step="0.1" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="shoe-purchase-date">Kaufdatum</label>
+        <input class="input" type="date" id="shoe-purchase-date" name="purchaseDate" required>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="shoe-icon">Schuh-Icon / Emoji</label>
+        <div class="emoji-field">
+          <input class="input" type="text" id="shoe-icon" name="icon" value="👟" maxlength="4"
+                 autocomplete="off" aria-describedby="shoe-icon-hint">
+          <span class="hint" id="shoe-icon-hint">Wähle ein Emoji für deinen Schuh, z.B. 👟, 🏃, ⚡</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn--filled btn--block">Schuh speichern</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- Schuh-Detail -->
+<dialog class="dialog" id="dialog-shoe-detail" aria-labelledby="detail-name">
+  <div class="dialog__inner">
+    <div class="dialog__head">
+      <div class="detail-head">
+        <span class="detail-head__emoji" id="detail-icon" aria-hidden="true">👟</span>
+        <div>
+          <h2 class="dialog__title" id="detail-name">Schuh</h2>
+          <p class="detail-head__brand" id="detail-brand">Marke</p>
+        </div>
+      </div>
+      <button type="button" class="icon-btn" data-close-dialog aria-label="Dialog schließen">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="meter" id="detail-meter">
+        <div class="meter__labels">
+          <span>Kilometerstand</span>
+          <b id="detail-km-text">0 / 0 km</b>
+        </div>
+        <div class="meter__track">
+          <div class="meter__bar" id="detail-progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="detail-cell">
+        <span class="detail-cell__label">Kaufdatum</span>
+        <span class="detail-cell__value" id="detail-purchase-date">–</span>
+      </div>
+      <div class="detail-cell">
+        <span class="detail-cell__label">Verbleibend</span>
+        <span class="detail-cell__value" id="detail-remaining-km">–</span>
+      </div>
+    </div>
+
+    <section>
+      <h3 class="section-title">Läufe mit diesem Schuh</h3>
+      <ul class="run-list run-scroll" id="detail-runs-list"></ul>
+    </section>
+
+    <div class="dialog__actions">
+      <button type="button" class="btn btn--outline" id="detail-archive-btn">
+        <svg class="icon icon--sm" aria-hidden="true"><use href="#i-archive" id="detail-archive-icon"/></svg>
+        <span id="detail-archive-text">Archivieren</span>
+      </button>
+      <button type="button" class="btn btn--danger btn--shrink" id="detail-delete-btn" aria-label="Schuh löschen">
+        <svg class="icon icon--sm" aria-hidden="true"><use href="#i-trash"/></svg>
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Bestätigung -->
+<dialog class="dialog" id="dialog-confirm" aria-labelledby="confirm-title">
+  <div class="dialog__inner">
+    <h2 class="dialog__title" id="confirm-title">Wirklich löschen?</h2>
+    <p class="dialog__text" id="confirm-text"></p>
+    <div class="dialog__actions">
+      <button type="button" class="btn btn--outline" id="confirm-cancel">Abbrechen</button>
+      <button type="button" class="btn btn--danger" id="confirm-ok">Löschen</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Installationshinweis (iOS / Browser ohne Install-Prompt) -->
+<dialog class="dialog" id="dialog-install" aria-labelledby="install-title">
+  <div class="dialog__inner">
+    <div class="dialog__head">
+      <h2 class="dialog__title" id="install-title">SchuhTracker installieren</h2>
+      <button type="button" class="icon-btn" data-close-dialog aria-label="Dialog schließen">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+      </button>
+    </div>
+    <p class="dialog__text" id="install-text"></p>
+    <button type="button" class="btn btn--filled btn--block" data-close-dialog>Verstanden</button>
+  </div>
+</dialog>
+
+<output class="toast" id="toast" role="status" aria-live="polite"></output>
+
+</body>
+</html>
